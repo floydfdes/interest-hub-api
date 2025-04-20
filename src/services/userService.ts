@@ -1,7 +1,7 @@
-import mongoose, { Schema, Types } from "mongoose";
+import { Schema, Types } from "mongoose";
 
-import User from "../models/User";
 import bcrypt from "bcryptjs";
+import User from "../models/User";
 
 export const getUserById = async (id: string) => {
     const user = await User.findById(id).select("name profilePic bio interests followers following");
@@ -148,7 +148,7 @@ export const searchUsers = async (query: string) => {
     const regex = new RegExp(query, "i");
     const users = await User.find({
         $or: [{ name: regex }, { interests: regex }],
-    }).select("name profilePic bio interests");
+    }).select("name profilePic bio interests following followers createdAt");
 
     return users;
 };

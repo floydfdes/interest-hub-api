@@ -94,6 +94,7 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
 
     res.status(200).json({
         message: "If an account with that email exists, a reset link has been sent.",
+        resetLink, // ← include the reset link here
     });
 };
 
