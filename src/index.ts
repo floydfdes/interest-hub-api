@@ -12,6 +12,7 @@ import swaggerDocument from "./docs/swagger.json";
 import errorHandler from "./middleware/errorHandler";
 import { restrictExternalAccess } from "./middleware/restrictExternalAccess";
 import authRoutes from "./routes/authRoutes";
+import commentRoutes from "./routes/commentRoutes";
 import postRoutes from "./routes/postRoutes";
 import userRoutes from "./routes/userRoutes";
 import logger from "./utils/logger";
@@ -54,6 +55,7 @@ app.use("/api", restrictExternalAccess);
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/posts", postRoutes);
+app.use("/api/comments", commentRoutes);
 
 
 
