@@ -75,7 +75,6 @@ export const likeComment = async (req: Request, res: Response) => {
     }
 };
 
-// Unlike a comment
 export const unlikeComment = async (req: Request, res: Response) => {
     try {
         const { commentId } = req.params;
