@@ -14,7 +14,7 @@ import { AuthRequest } from "../middleware/authMiddleware";
 
 export const createPost = async (req: AuthRequest, res: Response) => {
     try {
-        const { title, content, images, category, tags, visibility } = req.body;
+        const { title, content, image, category, tags, visibility } = req.body;
 
         if (!req.userId) {
             res.status(401).json({ message: "Unauthorized" });
@@ -24,7 +24,7 @@ export const createPost = async (req: AuthRequest, res: Response) => {
         const post = await createPostService({
             title,
             content,
-            images,
+            image,
             category,
             tags,
             visibility,

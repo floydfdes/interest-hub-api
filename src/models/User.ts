@@ -32,7 +32,7 @@ const UserSchema = new Schema<IUser>(
         email: { type: String, required: true, unique: true, lowercase: true, trim: true },
         password: { type: String, required: true, minlength: 6 },
         role: { type: String, enum: ["user", "admin"], default: "user" },
-        profilePic: { type: String, default: "" },
+        profilePic: { type: String, default: "" }, // Cloudinary URL for the profile picture
         bio: { type: String, maxlength: 160, default: "" },
         interests: { type: [String], default: [] },
         followers: [{ type: Schema.Types.ObjectId, ref: "User" }],

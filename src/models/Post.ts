@@ -5,7 +5,7 @@ export type Visibility = "public" | "private" | "followersOnly";
 export interface IPost extends Document {
     title: string;
     content: string;
-    images: string[];
+    image: string;
     category: string;
     tags: string[];
     author: mongoose.Types.ObjectId;
@@ -23,7 +23,7 @@ const PostSchema = new Schema<IPost>(
     {
         title: { type: String, required: true },
         content: { type: String, required: true },
-        images: [{ type: String, required: true }],
+        image: { type: String, required: true },
         category: { type: String, required: true },
         tags: [{ type: String }],
         author: { type: Schema.Types.ObjectId, ref: "User", required: true },

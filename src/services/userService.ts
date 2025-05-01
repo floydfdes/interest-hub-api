@@ -2,6 +2,7 @@ import { Schema, Types } from "mongoose";
 
 import bcrypt from "bcryptjs";
 import User from "../models/User";
+import { uploadImageToCloudinary } from "../utils/imageUpload"; // Import the image upload utility
 
 export const getUserById = async (id: string) => {
     const user = await User.findById(id).select("name profilePic bio interests followers following");
@@ -24,14 +25,19 @@ export const updateUserProfile = async (
         name: string;
         bio: string;
         interests: string[];
-        profilePic: string;
+        profilePic: { type: string; file: string };
     }>
 ) => {
-    const user = await User.findByIdAndUpdate(
-        userId,
-        { $set: updates },
-        { new: true, runValidators: true }
-    ).select("-password");
+    const user = await User.findById(userId);
+    if (!user) return null;
+
+    if (updates.profilePic) {
+        updates.profilePic.file = await uploadImageToCloudinary(updates.profilePic, "profile_pictures");
+    }
+
+    // Update user fields
+    Object.assign(user, updates);
+    await user.save();
 
     return user;
 };
@@ -86,7 +92,6 @@ export const followUser = async (userId: string, targetUserId: string) => {
 
     return true;
 };
-
 
 export const unfollowUser = async (userId: string, targetUserId: string) => {
     const user = await User.findById(userId);
