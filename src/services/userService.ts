@@ -2,7 +2,7 @@ import { Schema, Types } from "mongoose";
 
 import bcrypt from "bcryptjs";
 import User from "../models/User";
-import { uploadImageToCloudinary } from "../utils/imageUpload"; // Import the image upload utility
+import { uploadImageToCloudinary } from "../utils/uploadImage"; // Import the image upload utility
 
 export const getUserById = async (id: string) => {
     const user = await User.findById(id).select("name profilePic bio interests followers following");

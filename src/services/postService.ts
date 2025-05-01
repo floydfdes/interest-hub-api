@@ -2,7 +2,7 @@ import "../models/Comment";
 
 import Post, { IPost } from "../models/Post";
 
-import { uploadImageToCloudinary } from "../utils/imageUpload"; // Import the image upload utility
+import { uploadImageToCloudinary } from "../utils/uploadImage";
 
 export const createPostService = async (postData: Partial<IPost>) => {
     if (postData.image) {
