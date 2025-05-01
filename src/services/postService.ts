@@ -50,3 +50,21 @@ export const deletePostService = async (id: string, userId: string) => {
     await post.deleteOne();
     return true;
 };
+
+export const likePostService = async (postId: string, userId: string) => {
+    const post = await Post.findByIdAndUpdate(
+        postId,
+        { $addToSet: { likes: userId } },
+        { new: true }
+    );
+    return post;
+};
+
+export const unlikePostService = async (postId: string, userId: string) => {
+    const post = await Post.findByIdAndUpdate(
+        postId,
+        { $pull: { likes: userId } },
+        { new: true }
+    );
+    return post;
+};

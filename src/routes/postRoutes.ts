@@ -3,6 +3,8 @@ import {
     deletePost,
     getAllPosts,
     getPostById,
+    likePost,
+    unlikePost,
     updatePost
 } from "../controllers/postController";
 import { createPostValidation, updatePostValidation } from "../middleware/validatePost";
@@ -18,5 +20,7 @@ router.get("/", getAllPosts);
 router.get("/:id", getPostById);
 router.put("/:id", authMiddleware, updatePostValidation, validate, updatePost);
 router.delete("/:id", authMiddleware, deletePost);
+router.post("/:id/like", authMiddleware, likePost);
+router.post("/:id/unlike", authMiddleware, unlikePost);
 
 export default router;
