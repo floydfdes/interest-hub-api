@@ -6,7 +6,9 @@ import { uploadImageToCloudinary } from "../utils/uploadImage";
 
 export const createPostService = async (postData: Partial<IPost>) => {
     if (postData.image) {
-        postData.image = await uploadImageToCloudinary(postData.image, "post_images");
+        const cloudinaryUrl = await uploadImageToCloudinary(postData.image, "post_images");
+        postData.image.url = cloudinaryUrl;
+        postData.image.file = null;
     }
 
     return await Post.create(postData);
@@ -41,9 +43,10 @@ export const updatePostService = async (id: string, userId: string, updates: Par
     if (!post) return null;
     if (post.author.toString() !== userId) return false;
 
-    // Process images before updating the post
     if (updates.image) {
-        updates.image = await uploadImageToCloudinary(updates.image, "post_images");
+        const cloudinaryUrl = await uploadImageToCloudinary(updates.image, "post_images");
+        updates.image.url = cloudinaryUrl;
+        updates.image.file = null;
     }
 
     Object.assign(post, updates, { isEdited: true });

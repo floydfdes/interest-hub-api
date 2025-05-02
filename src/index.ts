@@ -1,8 +1,9 @@
-import express, { Request, Response } from "express";
-
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import dotenv from "dotenv";
+import express, { Request, Response } from "express";
+dotenv.config();
+
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -17,12 +18,15 @@ import postRoutes from "./routes/postRoutes";
 import userRoutes from "./routes/userRoutes";
 import logger from "./utils/logger";
 
+
+
+
 const allowedOrigins = [
     "http://localhost:3000",
     "http://localhost:4300",
 ];
 
-dotenv.config();
+
 
 const app = express();
 const PORT = process.env.PORT || 4300;

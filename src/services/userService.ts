@@ -25,17 +25,18 @@ export const updateUserProfile = async (
         name: string;
         bio: string;
         interests: string[];
-        profilePic: { type: string; file: string };
+        profilePic: { type: string; file: string | null; url: string };
     }>
 ) => {
     const user = await User.findById(userId);
     if (!user) return null;
 
     if (updates.profilePic) {
-        updates.profilePic.file = await uploadImageToCloudinary(updates.profilePic, "profile_pictures");
+        const cloudinaryUrl = await uploadImageToCloudinary(updates.profilePic, "profile_pictures");
+        updates.profilePic.url = cloudinaryUrl;
+        updates.profilePic.file = null;
     }
 
-    // Update user fields
     Object.assign(user, updates);
     await user.save();
 

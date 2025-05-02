@@ -5,7 +5,11 @@ export type Visibility = "public" | "private" | "followersOnly";
 export interface IPost extends Document {
     title: string;
     content: string;
-    image: string;
+    image: {
+        type: "file" | "url";
+        file: string | null;
+        url: string;
+    };
     category: string;
     tags: string[];
     author: mongoose.Types.ObjectId;
@@ -23,7 +27,15 @@ const PostSchema = new Schema<IPost>(
     {
         title: { type: String, required: true },
         content: { type: String, required: true },
-        image: { type: String, required: true },
+        image: {
+            type: {
+                type: String,
+                enum: ["file", "url"],
+                required: true,
+            },
+            file: { type: String, required: true },
+            url: { type: String, default: "" }, // Cloudinary URL
+        },
         category: { type: String, required: true },
         tags: [{ type: String }],
         author: { type: Schema.Types.ObjectId, ref: "User", required: true },
@@ -32,11 +44,11 @@ const PostSchema = new Schema<IPost>(
         visibility: {
             type: String,
             enum: ["public", "private", "followersOnly"],
-            default: "public"
+            default: "public",
         },
         viewCount: { type: Number, default: 0 },
         sharedFrom: { type: Schema.Types.ObjectId, ref: "Post", default: null },
-        isEdited: { type: Boolean, default: false }
+        isEdited: { type: Boolean, default: false },
     },
     { timestamps: true }
 );

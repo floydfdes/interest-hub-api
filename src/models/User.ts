@@ -6,7 +6,11 @@ export interface IUser extends Document {
     email: string;
     password: string;
     role: "user" | "admin";
-    profilePic: string;
+    profilePic: {
+        type: "file" | "url";
+        file: string;
+        url: string;
+    };
     bio: string;
     interests: string[];
     followers: Schema.Types.ObjectId[];
@@ -22,8 +26,8 @@ export interface IUser extends Document {
         reason: string;
         date: Date;
     }[];
-    isDeleted: { type: Boolean, default: false },
-    deletedAt: { type: Date, default: null },
+    isDeleted: { type: Boolean, default: false };
+    deletedAt: { type: Date, default: null };
 }
 
 const UserSchema = new Schema<IUser>(
@@ -32,7 +36,15 @@ const UserSchema = new Schema<IUser>(
         email: { type: String, required: true, unique: true, lowercase: true, trim: true },
         password: { type: String, required: true, minlength: 6 },
         role: { type: String, enum: ["user", "admin"], default: "user" },
-        profilePic: { type: String, default: "" }, // Cloudinary URL for the profile picture
+        profilePic: {
+            type: {
+                type: String,
+                enum: ["file", "url"],
+                required: true,
+            },
+            file: { type: String, required: true },
+            url: { type: String, default: "" }, // Cloudinary URL
+        },
         bio: { type: String, maxlength: 160, default: "" },
         interests: { type: [String], default: [] },
         followers: [{ type: Schema.Types.ObjectId, ref: "User" }],
@@ -50,6 +62,8 @@ const UserSchema = new Schema<IUser>(
                 date: { type: Date, default: Date.now },
             },
         ],
+        isDeleted: { type: Boolean, default: false },
+        deletedAt: { type: Date, default: null },
     },
     { timestamps: true }
 );
