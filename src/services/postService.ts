@@ -27,6 +27,7 @@ export const getPostByIdService = async (id: string) => {
         .populate("author", "name profilePic")
         .populate({
             path: "comments",
+            model: "Comment",
             populate: {
                 path: "user",
                 select: "name profilePic"

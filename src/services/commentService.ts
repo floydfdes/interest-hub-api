@@ -1,8 +1,10 @@
 import CommentModel, { IComment } from "../models/Comment";
+import Post from "../models/Post"; // Import the Post model
 
 import mongoose from "mongoose";
 
 export const createCommentService = async (userId: string, postId: string, content: string): Promise<IComment> => {
+    // Create the comment
     const comment = new CommentModel({
         user: new mongoose.Types.ObjectId(userId),
         post: new mongoose.Types.ObjectId(postId),
@@ -10,7 +12,16 @@ export const createCommentService = async (userId: string, postId: string, conte
         likes: [],
         replies: []
     });
-    return await comment.save();
+
+    const savedComment = await comment.save();
+
+    await Post.findByIdAndUpdate(
+        postId,
+        { $push: { comments: savedComment._id } },
+        { new: true }
+    );
+
+    return savedComment;
 };
 
 export const editCommentService = async (commentId: string, userId: string, content: string): Promise<IComment | null> => {
