@@ -6,11 +6,7 @@ export interface IUser extends Document {
     email: string;
     password: string;
     role: "user" | "admin";
-    profilePic: {
-        type: "file" | "url";
-        file: string;
-        url: string;
-    };
+    profilePic: string;
     bio: string;
     interests: string[];
     followers: Schema.Types.ObjectId[];
@@ -37,13 +33,9 @@ const UserSchema = new Schema<IUser>(
         password: { type: String, required: true, minlength: 6 },
         role: { type: String, enum: ["user", "admin"], default: "user" },
         profilePic: {
-            type: {
-                type: String,
-                enum: ["file", "url"],
-                required: true,
-            },
-            file: { type: String, required: true },
-            url: { type: String, default: "" }, // Cloudinary URL
+            type: String,
+            required: true,
+            default: "",
         },
         bio: { type: String, maxlength: 160, default: "" },
         interests: { type: [String], default: [] },

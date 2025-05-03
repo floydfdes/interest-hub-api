@@ -25,7 +25,7 @@ export const updateUserProfile = async (
         name: string;
         bio: string;
         interests: string[];
-        profilePic: { type: string; file: string | null; url: string };
+        profilePic: string; // ⬅️ simplified
     }>
 ) => {
     const user = await User.findById(userId);
@@ -33,8 +33,7 @@ export const updateUserProfile = async (
 
     if (updates.profilePic) {
         const cloudinaryUrl = await uploadImageToCloudinary(updates.profilePic, "profile_pictures");
-        updates.profilePic.url = cloudinaryUrl;
-        updates.profilePic.file = null;
+        updates.profilePic = cloudinaryUrl;
     }
 
     Object.assign(user, updates);
@@ -42,6 +41,7 @@ export const updateUserProfile = async (
 
     return user;
 };
+
 
 export const deleteUserAccount = async (userId: string) => {
     return await User.findByIdAndDelete(userId);

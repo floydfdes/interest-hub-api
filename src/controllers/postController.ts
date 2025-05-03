@@ -33,6 +33,7 @@ export const createPost = async (req: AuthRequest, res: Response) => {
 
         res.status(201).json(post);
     } catch (error) {
+        console.log(error);
         res.status(500).json({ message: "Failed to create post" });
     }
 };
@@ -41,6 +42,7 @@ export const getAllPosts = async (_req: Request, res: Response) => {
 
     try {
         const posts = await getAllPostsService();
+
         res.json(posts);
     } catch (error) {
         res.status(500).json({ message: "Failed to fetch posts" });

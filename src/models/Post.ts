@@ -5,11 +5,7 @@ export type Visibility = "public" | "private" | "followersOnly";
 export interface IPost extends Document {
     title: string;
     content: string;
-    image: {
-        type: "file" | "url";
-        file: string | null;
-        url: string;
-    };
+    image: string;
     category: string;
     tags: string[];
     author: mongoose.Types.ObjectId;
@@ -28,13 +24,8 @@ const PostSchema = new Schema<IPost>(
         title: { type: String, required: true },
         content: { type: String, required: true },
         image: {
-            type: {
-                type: String,
-                enum: ["file", "url"],
-                required: true,
-            },
-            file: { type: String, required: true },
-            url: { type: String, default: "" }, // Cloudinary URL
+            type: String,
+            required: true,
         },
         category: { type: String, required: true },
         tags: [{ type: String }],

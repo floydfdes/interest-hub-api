@@ -4,15 +4,18 @@ import Post, { IPost } from "../models/Post";
 
 import { uploadImageToCloudinary } from "../utils/uploadImage";
 
-export const createPostService = async (postData: Partial<IPost>) => {
-    if (postData.image) {
-        const cloudinaryUrl = await uploadImageToCloudinary(postData.image, "post_images");
-        postData.image.url = cloudinaryUrl;
-        postData.image.file = null;
-    }
+export const createPostService = async (postData: Partial<IPost> & { image: Buffer | string }) => {
+    if (!postData.image) throw new Error("Image is required");
 
-    return await Post.create(postData);
+    const cloudinaryUrl = await uploadImageToCloudinary(postData.image, "post_images");
+    const { image, ...rest } = postData;
+
+    return await Post.create({
+        ...rest,
+        image: cloudinaryUrl,
+    });
 };
+
 
 export const getAllPostsService = async () => {
     return await Post.find()
@@ -38,21 +41,25 @@ export const getPostByIdService = async (id: string) => {
     return post;
 };
 
-export const updatePostService = async (id: string, userId: string, updates: Partial<IPost>) => {
+export const updatePostService = async (
+    id: string,
+    userId: string,
+    updates: Partial<IPost> & { image?: Buffer | string }
+) => {
     const post = await Post.findById(id);
     if (!post) return null;
     if (post.author.toString() !== userId) return false;
 
     if (updates.image) {
         const cloudinaryUrl = await uploadImageToCloudinary(updates.image, "post_images");
-        updates.image.url = cloudinaryUrl;
-        updates.image.file = null;
+        updates.image = cloudinaryUrl;
     }
 
     Object.assign(post, updates, { isEdited: true });
     await post.save();
     return post;
 };
+
 
 export const deletePostService = async (id: string, userId: string) => {
     const post = await Post.findById(id);
