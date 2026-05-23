@@ -191,7 +191,7 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Reset link sent"
+                        "description": "Password reset request accepted"
                     }
                 }
             }
@@ -285,7 +285,7 @@
                 "tags": [
                     "Posts"
                 ],
-                "summary": "Get all posts",
+                "summary": "Get all public posts",
                 "responses": {
                     "200": {
                         "description": "List of posts"
@@ -310,7 +310,9 @@
                                 "type": "object",
                                 "required": [
                                     "title",
-                                    "content"
+                                    "content",
+                                    "image",
+                                    "category"
                                 ],
                                 "properties": {
                                     "title": {
@@ -319,11 +321,9 @@
                                     "content": {
                                         "type": "string"
                                     },
-                                    "images": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "string"
-                                        }
+                                    "image": {
+                                        "type": "string",
+                                        "description": "Base64 encoded image or data URI"
                                     },
                                     "category": {
                                         "type": "string"
@@ -415,11 +415,9 @@
                                     "content": {
                                         "type": "string"
                                     },
-                                    "images": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "string"
-                                        }
+                                    "image": {
+                                        "type": "string",
+                                        "description": "Base64 encoded image or data URI"
                                     },
                                     "category": {
                                         "type": "string"

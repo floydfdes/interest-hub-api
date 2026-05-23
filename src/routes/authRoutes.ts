@@ -1,5 +1,19 @@
-import { changePassword, forgotPassword, loginUser, logoutUser, refreshAccessToken, registerUser, resetPassword } from "../controllers/authController";
-import { loginValidation, registerValidation } from "../middleware/validateAuth";
+import {
+  changePassword,
+  forgotPassword,
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
+  registerUser,
+  resetPassword,
+} from "../controllers/authController";
+import {
+  changePasswordValidation,
+  forgotPasswordValidation,
+  loginValidation,
+  registerValidation,
+  resetPasswordValidation,
+} from "../middleware/validateAuth";
 
 import express from "express";
 import authMiddleware from "../middleware/authMiddleware";
@@ -11,10 +25,14 @@ router.post("/register", registerValidation, validate, registerUser);
 router.post("/login", loginValidation, validate, loginUser);
 router.post("/refresh", refreshAccessToken);
 router.post("/logout", authMiddleware, logoutUser);
-router.post("/forgot-password", forgotPassword);
-router.post("/reset-password", resetPassword);
-router.patch("/change-password", authMiddleware, changePassword);
-
-
+router.post("/forgot-password", forgotPasswordValidation, validate, forgotPassword);
+router.post("/reset-password", resetPasswordValidation, validate, resetPassword);
+router.patch(
+  "/change-password",
+  authMiddleware,
+  changePasswordValidation,
+  validate,
+  changePassword
+);
 
 export default router;

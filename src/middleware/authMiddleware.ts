@@ -1,30 +1,28 @@
 import { NextFunction, Request, Response } from "express";
 
-import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET || "secret";
+import { verifyToken } from "../utils/token";
 
 interface AuthRequest extends Request {
-    userId?: string;
+  userId?: string;
 }
 
 const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction): void => {
-    const authHeader = req.headers.authorization;
+  const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        res.status(401).json({ message: "Authorization header missing or invalid" });
-        return;
-    }
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    res.status(401).json({ message: "Authorization header missing or invalid" });
+    return;
+  }
 
-    const token = authHeader.split(" ")[1];
+  const token = authHeader.split(" ")[1];
 
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
-        req.userId = decoded.userId;
-        next();
-    } catch {
-        res.status(401).json({ message: "Invalid or expired token" });
-    }
+  try {
+    const decoded = verifyToken(token, "access");
+    req.userId = decoded.userId;
+    next();
+  } catch {
+    res.status(401).json({ message: "Invalid or expired token" });
+  }
 };
 
 export default authMiddleware;

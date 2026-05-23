@@ -1,15 +1,15 @@
 import {
-    block,
-    deleteAccount,
-    follow,
-    followers,
-    following,
-    getMe,
-    getProfile,
-    search,
-    unblock,
-    unfollow,
-    updateProfile,
+  block,
+  deleteAccount,
+  follow,
+  followers,
+  following,
+  getMe,
+  getProfile,
+  search,
+  unblock,
+  unfollow,
+  updateProfile,
 } from "../controllers/userController";
 
 import express from "express";

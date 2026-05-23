@@ -1,11 +1,11 @@
 import {
-    createPost,
-    deletePost,
-    getAllPosts,
-    getPostById,
-    likePost,
-    unlikePost,
-    updatePost
+  createPost,
+  deletePost,
+  getAllPosts,
+  getPostById,
+  likePost,
+  unlikePost,
+  updatePost,
 } from "../controllers/postController";
 import { createPostValidation, updatePostValidation } from "../middleware/validatePost";
 
