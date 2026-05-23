@@ -33,7 +33,6 @@ const UserSchema = new Schema<IUser>(
     role: { type: String, enum: ["user", "admin"], default: "user" },
     profilePic: {
       type: String,
-      required: true,
       default: "",
     },
     bio: { type: String, maxlength: 160, default: "" },

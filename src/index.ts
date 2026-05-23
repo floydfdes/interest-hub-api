@@ -13,6 +13,7 @@ import swaggerDocument from "./docs/swagger.json";
 import errorHandler from "./middleware/errorHandler";
 import authRoutes from "./routes/authRoutes";
 import commentRoutes from "./routes/commentRoutes";
+import contactRoutes from "./routes/contactRoutes";
 import postRoutes from "./routes/postRoutes";
 import userRoutes from "./routes/userRoutes";
 import logger from "./utils/logger";
@@ -52,6 +53,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/comments", commentRoutes);
+app.use("/api/contact", contactRoutes);
 
 app.get("/api/health", (_req: Request, res: Response) => {
   res.json({ status: "ok", environment: process.env.NODE_ENV || "dev" });
