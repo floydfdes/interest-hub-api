@@ -14,7 +14,10 @@ const mockCommentFind = jest.fn(() => ({ select: mockCommentSelect }));
 
 const mockUserFindById = jest.fn();
 const mockUserFindByIdAndDelete = jest.fn();
+const mockUserDeleteMany = jest.fn();
 const mockUserUpdateMany = jest.fn();
+const mockUserSelect = jest.fn();
+const mockUserFind = jest.fn(() => ({ select: mockUserSelect }));
 
 jest.mock("../models/Post", () => ({
   __esModule: true,
@@ -40,13 +43,20 @@ jest.mock("../models/Comment", () => ({
 jest.mock("../models/User", () => ({
   __esModule: true,
   default: {
+    find: mockUserFind,
     findById: mockUserFindById,
     findByIdAndDelete: mockUserFindByIdAndDelete,
+    deleteMany: mockUserDeleteMany,
     updateMany: mockUserUpdateMany,
   },
 }));
 
-import { deleteAdminPostService, deleteAdminUserService } from "../services/adminService";
+import {
+  bulkDeleteAdminPostsService,
+  bulkDeleteAdminUsersService,
+  deleteAdminPostService,
+  deleteAdminUserService,
+} from "../services/adminService";
 
 describe("admin destructive actions", () => {
   beforeEach(() => {
@@ -110,5 +120,36 @@ describe("admin destructive actions", () => {
       "Cannot delete your own admin account"
     );
     expect(mockUserFindByIdAndDelete).not.toHaveBeenCalled();
+  });
+
+  it("bulk-deletes selected posts once and reports missing records", async () => {
+    const existingId = new mongoose.Types.ObjectId();
+    const missingId = new mongoose.Types.ObjectId();
+    mockPostSelect.mockResolvedValue([{ _id: existingId }]);
+    mockPostDeleteMany.mockResolvedValue({});
+    mockCommentDeleteMany.mockResolvedValue({});
+    mockPostUpdateMany.mockResolvedValue({});
+    mockUserUpdateMany.mockResolvedValue({});
+
+    const result = await bulkDeleteAdminPostsService([
+      existingId.toString(),
+      existingId.toString(),
+      missingId.toString(),
+    ]);
+
+    expect(result).toEqual({ requested: 2, deleted: 1 });
+    expect(mockPostDeleteMany).toHaveBeenCalledWith({ _id: { $in: [existingId] } });
+    expect(mockCommentDeleteMany).toHaveBeenCalledWith({ post: { $in: [existingId] } });
+  });
+
+  it("rejects a bulk user deletion when the signed-in admin is selected", async () => {
+    const adminId = "507f1f77bcf86cd799439abc";
+    mockUserSelect.mockResolvedValue([{ _id: new mongoose.Types.ObjectId(adminId) }]);
+
+    await expect(bulkDeleteAdminUsersService([adminId], adminId)).rejects.toThrow(
+      "Cannot delete your own admin account"
+    );
+    expect(mockUserDeleteMany).not.toHaveBeenCalled();
+    expect(mockPostFind).not.toHaveBeenCalled();
   });
 });

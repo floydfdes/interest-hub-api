@@ -1,6 +1,9 @@
 import { Response } from "express";
 import { AuthRequest } from "../middleware/authMiddleware";
 import {
+  bulkDeleteAdminCommentsService,
+  bulkDeleteAdminPostsService,
+  bulkDeleteAdminUsersService,
   createAdminUserService,
   deleteAdminCommentService,
   deleteAdminPostService,
@@ -108,6 +111,15 @@ export const deleteAdminUser = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const bulkDeleteAdminUsers = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await bulkDeleteAdminUsersService(req.body.ids, req.userId!);
+    res.status(200).json({ message: "Users deleted", ...result });
+  } catch (error) {
+    errorResponse(res, error, "Failed to delete users");
+  }
+};
+
 export const blockAdminUser = async (req: AuthRequest, res: Response) => {
   try {
     const user = await setAdminUserBlockedService(req.params.id, req.userId!, true);
@@ -182,6 +194,15 @@ export const deleteAdminPost = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const bulkDeleteAdminPosts = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await bulkDeleteAdminPostsService(req.body.ids);
+    res.status(200).json({ message: "Posts deleted", ...result });
+  } catch (error) {
+    errorResponse(res, error, "Failed to delete posts");
+  }
+};
+
 export const deleteAdminComment = async (req: AuthRequest, res: Response) => {
   try {
     if (!(await deleteAdminCommentService(req.params.commentId))) {
@@ -191,6 +212,15 @@ export const deleteAdminComment = async (req: AuthRequest, res: Response) => {
     res.status(200).json({ message: "Comment deleted" });
   } catch (error) {
     errorResponse(res, error, "Failed to delete comment");
+  }
+};
+
+export const bulkDeleteAdminComments = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await bulkDeleteAdminCommentsService(req.body.ids);
+    res.status(200).json({ message: "Comments deleted", ...result });
+  } catch (error) {
+    errorResponse(res, error, "Failed to delete comments");
   }
 };
 

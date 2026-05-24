@@ -28,3 +28,8 @@ export const updateAdminUserValidation = [
     .withMessage("Password must be at least 6 characters"),
   ...optionalUserFields,
 ];
+
+export const bulkDeleteAdminValidation = [
+  body("ids").isArray({ min: 1, max: 100 }).withMessage("Provide between 1 and 100 selected ids"),
+  body("ids.*").isMongoId().withMessage("Each selected id must be valid"),
+];

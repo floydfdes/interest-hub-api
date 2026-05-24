@@ -1649,6 +1649,35 @@
                 }
             }
         },
+        "/api/admin/users/bulk-delete": {
+            "post": {
+                "tags": ["Admin"],
+                "summary": "Permanently delete selected users and their owned content",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["ids"],
+                                "properties": {
+                                    "ids": {
+                                        "type": "array",
+                                        "minItems": 1,
+                                        "maxItems": 100,
+                                        "items": { "type": "string" }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": { "description": "Selected users deleted" },
+                    "400": { "description": "Invalid selection or current admin was selected" }
+                }
+            }
+        },
         "/api/admin/users/{id}/block": {
             "patch": {
                 "tags": ["Admin"],
@@ -1698,6 +1727,32 @@
                 "responses": { "200": { "description": "Post deleted" } }
             }
         },
+        "/api/admin/posts/bulk-delete": {
+            "post": {
+                "tags": ["Admin"],
+                "summary": "Permanently delete selected posts and their comments",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["ids"],
+                                "properties": {
+                                    "ids": {
+                                        "type": "array",
+                                        "minItems": 1,
+                                        "maxItems": 100,
+                                        "items": { "type": "string" }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": { "200": { "description": "Selected posts deleted" } }
+            }
+        },
         "/api/admin/comments/{commentId}": {
             "delete": {
                 "tags": ["Admin"],
@@ -1706,6 +1761,32 @@
                     { "name": "commentId", "in": "path", "required": true, "schema": { "type": "string" } }
                 ],
                 "responses": { "200": { "description": "Comment deleted" } }
+            }
+        },
+        "/api/admin/comments/bulk-delete": {
+            "post": {
+                "tags": ["Admin"],
+                "summary": "Permanently delete selected top-level comments",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["ids"],
+                                "properties": {
+                                    "ids": {
+                                        "type": "array",
+                                        "minItems": 1,
+                                        "maxItems": 100,
+                                        "items": { "type": "string" }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": { "200": { "description": "Selected comments deleted" } }
             }
         },
         "/api/admin/comments/{commentId}/replies/{replyIndex}": {

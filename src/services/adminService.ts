@@ -32,6 +32,9 @@ interface AdminPostFilters extends Pagination {
 
 const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+const uniqueObjectIds = (ids: string[]) =>
+  [...new Set(ids)].map((id) => new mongoose.Types.ObjectId(id));
+
 export const getAdminDashboardService = async () => {
   const [
     totalUsers,
@@ -210,6 +213,59 @@ export const deleteAdminUserService = async (id: string, actorId: string) => {
   return true;
 };
 
+export const bulkDeleteAdminUsersService = async (ids: string[], actorId: string) => {
+  const selectedIds = uniqueObjectIds(ids);
+  const users = await User.find({ _id: { $in: selectedIds } }).select("_id");
+  const userIds = users.map((user) => user._id);
+  if (userIds.some((id) => id.toString() === actorId)) {
+    throw new Error("Cannot delete your own admin account");
+  }
+
+  const posts = await Post.find({ author: { $in: userIds } }).select("_id");
+  const postIds = posts.map((post) => post._id);
+  const comments = await Comment.find({
+    $or: [{ user: { $in: userIds } }, { post: { $in: postIds } }],
+  }).select("_id");
+  const commentIds = comments.map((comment) => comment._id);
+
+  await Promise.all([
+    Comment.deleteMany({ _id: { $in: commentIds } }),
+    Comment.updateMany(
+      {},
+      {
+        $pull: {
+          replies: { user: { $in: userIds } },
+          likes: { $in: userIds },
+        },
+      }
+    ),
+    Post.deleteMany({ _id: { $in: postIds } }),
+    Post.updateMany(
+      {},
+      {
+        $pull: {
+          comments: { $in: commentIds },
+          likes: { $in: userIds },
+        },
+      }
+    ),
+    Post.updateMany({ sharedFrom: { $in: postIds } }, { $set: { sharedFrom: null } }),
+    User.updateMany(
+      {},
+      {
+        $pull: {
+          followers: { $in: userIds },
+          following: { $in: userIds },
+          savedPosts: { $in: postIds },
+        },
+      }
+    ),
+  ]);
+  await User.deleteMany({ _id: { $in: userIds } });
+
+  return { requested: selectedIds.length, deleted: userIds.length };
+};
+
 export const setAdminUserBlockedService = async (
   id: string,
   actorId: string,
@@ -268,12 +324,40 @@ export const deleteAdminPostService = async (id: string) => {
   return true;
 };
 
+export const bulkDeleteAdminPostsService = async (ids: string[]) => {
+  const selectedIds = uniqueObjectIds(ids);
+  const posts = await Post.find({ _id: { $in: selectedIds } }).select("_id");
+  const postIds = posts.map((post) => post._id);
+
+  await Promise.all([
+    Post.deleteMany({ _id: { $in: postIds } }),
+    Comment.deleteMany({ post: { $in: postIds } }),
+    Post.updateMany({ sharedFrom: { $in: postIds } }, { $set: { sharedFrom: null } }),
+    User.updateMany({}, { $pull: { savedPosts: { $in: postIds } } }),
+  ]);
+
+  return { requested: selectedIds.length, deleted: postIds.length };
+};
+
 export const deleteAdminCommentService = async (id: string) => {
   const comment = await Comment.findByIdAndDelete(id);
   if (!comment) return false;
 
   await Post.findByIdAndUpdate(comment.post, { $pull: { comments: comment._id } });
   return true;
+};
+
+export const bulkDeleteAdminCommentsService = async (ids: string[]) => {
+  const selectedIds = uniqueObjectIds(ids);
+  const comments = await Comment.find({ _id: { $in: selectedIds } }).select("_id");
+  const commentIds = comments.map((comment) => comment._id);
+
+  await Promise.all([
+    Comment.deleteMany({ _id: { $in: commentIds } }),
+    Post.updateMany({}, { $pull: { comments: { $in: commentIds } } }),
+  ]);
+
+  return { requested: selectedIds.length, deleted: commentIds.length };
 };
 
 export const deleteAdminReplyService = async (commentId: string, replyIndex: number) => {
