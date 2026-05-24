@@ -1,6 +1,6 @@
 import { v2 as cloudinary } from "cloudinary";
 import sharp from "sharp";
-import logger from "./logger";
+import { logError } from "./logger";
 
 const configureCloudinary = (): void => {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
@@ -44,9 +44,9 @@ export const uploadImageToCloudinary = async (base64: string, folder: string): P
 
     return uploadResult;
   } catch (error) {
-    logger.error(
-      `Cloudinary image upload failed: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
+    logError("Cloudinary image upload failed", error, {
+      folder,
+    });
     throw new Error("Image upload failed", { cause: error });
   }
 };

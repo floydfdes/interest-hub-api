@@ -20,7 +20,7 @@ import {
 
 import mongoose from "mongoose";
 import { AuthRequest } from "../middleware/authMiddleware";
-import logger from "../utils/logger";
+import { logError } from "../utils/logger";
 
 const getLimit = (value: unknown, defaultLimit = 20) => {
   const parsed = typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;
@@ -48,9 +48,9 @@ export const createPost = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(post);
   } catch (error) {
-    logger.error(
-      `Failed to create post: ${error instanceof Error ? error.message : "Unknown upload error"}`
-    );
+    logError("Failed to create post", error, {
+      userId: req.userId,
+    });
     res.status(500).json({ message: "Failed to create post" });
   }
 };
@@ -61,6 +61,7 @@ export const getAllPosts = async (_req: Request, res: Response) => {
 
     res.json(posts);
   } catch (error) {
+    logError("Failed to fetch posts", error);
     res.status(500).json({ message: "Failed to fetch posts" });
   }
 };
@@ -78,6 +79,7 @@ export const searchPosts = async (req: Request, res: Response) => {
 
     res.json(posts);
   } catch (error) {
+    logError("Failed to search posts", error);
     res.status(500).json({ message: "Failed to search posts" });
   }
 };
@@ -99,6 +101,7 @@ export const advancedSearchPosts = async (req: Request, res: Response) => {
 
     res.json(posts);
   } catch (error) {
+    logError("Failed to run advanced post search", error);
     res.status(500).json({ message: "Failed to search posts" });
   }
 };
@@ -113,6 +116,7 @@ export const getFollowingFeed = async (req: AuthRequest, res: Response) => {
 
     res.json(posts);
   } catch (error) {
+    logError("Failed to fetch following feed", error, { userId: req.userId });
     res.status(500).json({ message: "Failed to fetch following feed" });
   }
 };
@@ -133,6 +137,7 @@ export const getTrendingPosts = async (req: Request, res: Response) => {
     );
     res.json(posts);
   } catch (error) {
+    logError("Failed to fetch trending posts", error, { period: rawPeriod });
     res.status(500).json({ message: "Failed to fetch trending posts" });
   }
 };
@@ -147,6 +152,7 @@ export const getRecommendedPosts = async (req: AuthRequest, res: Response) => {
 
     res.json(posts);
   } catch (error) {
+    logError("Failed to fetch recommended posts", error, { userId: req.userId });
     res.status(500).json({ message: "Failed to fetch recommended posts" });
   }
 };
@@ -161,6 +167,7 @@ export const bookmarkPost = async (req: AuthRequest, res: Response) => {
 
     res.status(200).json({ message: "Post bookmarked" });
   } catch (error) {
+    logError("Failed to bookmark post", error, { postId: req.params.id, userId: req.userId });
     res.status(500).json({ message: "Failed to bookmark post" });
   }
 };
@@ -175,6 +182,7 @@ export const removeBookmark = async (req: AuthRequest, res: Response) => {
 
     res.status(200).json({ message: "Bookmark removed" });
   } catch (error) {
+    logError("Failed to remove bookmark", error, { postId: req.params.id, userId: req.userId });
     res.status(500).json({ message: "Failed to remove bookmark" });
   }
 };
@@ -189,6 +197,7 @@ export const getBookmarkedPosts = async (req: AuthRequest, res: Response) => {
 
     res.json(posts);
   } catch (error) {
+    logError("Failed to fetch bookmarks", error, { userId: req.userId });
     res.status(500).json({ message: "Failed to fetch bookmarks" });
   }
 };
@@ -204,6 +213,7 @@ export const getPostById = async (req: Request, res: Response) => {
 
     res.json(post);
   } catch (error) {
+    logError("Failed to fetch post", error, { postId: req.params.id });
     res.status(500).json({ message: "Failed to fetch post" });
   }
 };
@@ -229,6 +239,7 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
 
     res.json(post);
   } catch (error) {
+    logError("Failed to update post", error, { postId: req.params.id, userId: req.userId });
     res.status(500).json({ message: "Failed to update post" });
   }
 };
@@ -254,6 +265,7 @@ export const deletePost = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: "Post deleted successfully" });
   } catch (error) {
+    logError("Failed to delete post", error, { postId: req.params.id, userId: req.userId });
     res.status(500).json({ message: "Failed to delete post" });
   }
 };
@@ -271,6 +283,7 @@ export const likePost = async (req: AuthRequest, res: Response) => {
 
     res.status(200).json(post);
   } catch (error) {
+    logError("Failed to like post", error, { postId: req.params.id, userId: req.userId });
     res.status(500).json({ message: "Failed to like post" });
   }
 };
@@ -288,6 +301,7 @@ export const unlikePost = async (req: AuthRequest, res: Response) => {
 
     res.status(200).json(post);
   } catch (error) {
+    logError("Failed to unlike post", error, { postId: req.params.id, userId: req.userId });
     res.status(500).json({ message: "Failed to unlike post" });
   }
 };

@@ -1,8 +1,7 @@
+import "./config/loadEnv";
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import dotenv from "dotenv";
 import express, { Request, Response } from "express";
-dotenv.config({ quiet: true });
 
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
@@ -16,7 +15,7 @@ import commentRoutes from "./routes/commentRoutes";
 import contactRoutes from "./routes/contactRoutes";
 import postRoutes from "./routes/postRoutes";
 import userRoutes from "./routes/userRoutes";
-import logger from "./utils/logger";
+import logger, { logError } from "./utils/logger";
 
 const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:3000,http://localhost:4300")
   .split(",")
@@ -40,7 +39,11 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 app.use(
-  morgan(":method :url :status :res[content-length] - :response-time ms :remote-addr :user-agent")
+  morgan(":method :url :status :res[content-length] - :response-time ms :remote-addr :user-agent", {
+    stream: {
+      write: (message) => logger.http(message.trim()),
+    },
+  })
 );
 app.use(
   rateLimit({
@@ -78,7 +81,7 @@ if (require.main === module) {
       });
     })
     .catch((error) => {
-      logger.error("MongoDB connection error:", error);
+      logError("MongoDB connection error", error);
       process.exitCode = 1;
     });
 }

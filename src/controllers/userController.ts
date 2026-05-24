@@ -15,6 +15,7 @@ import {
 
 import { AuthRequest } from "../middleware/authMiddleware";
 import User from "../models/User";
+import { logError } from "../utils/logger";
 
 const getLimit = (value: unknown, defaultLimit = 10) => {
   const parsed = typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;
@@ -49,6 +50,7 @@ export const getProfile = async (req: Request, res: Response) => {
     }
     res.status(200).json(profile);
   } catch (error) {
+    logError("Failed to fetch user profile", error, { profileId: req.params.id });
     res.status(500).json({ message: "Failed to fetch user profile" });
   }
 };
@@ -58,6 +60,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
     const updated = await updateUserProfile(req.userId!, req.body);
     res.status(200).json(updated);
   } catch (error) {
+    logError("Failed to update profile", error, { userId: req.userId });
     res.status(500).json({ message: "Failed to update profile" });
   }
 };
@@ -67,6 +70,7 @@ export const deleteAccount = async (req: AuthRequest, res: Response) => {
     await deleteUserAccount(req.userId!);
     res.status(200).json({ message: "Account deleted successfully" });
   } catch (error) {
+    logError("Failed to delete account", error, { userId: req.userId });
     res.status(500).json({ message: "Failed to delete account" });
   }
 };
@@ -77,6 +81,10 @@ export const follow = async (req: AuthRequest, res: Response) => {
     await followUser(req.userId!, targetUserId);
     res.status(200).json({ message: "Followed successfully" });
   } catch (error) {
+    logError("Failed to follow user", error, {
+      userId: req.userId,
+      targetUserId: req.params.targetUserId,
+    });
     res.status(500).json({ message: "Failed to follow user" });
   }
 };
@@ -87,6 +95,10 @@ export const unfollow = async (req: AuthRequest, res: Response) => {
     await unfollowUser(req.userId!, targetUserId);
     res.status(200).json({ message: "Unfollowed successfully" });
   } catch (error) {
+    logError("Failed to unfollow user", error, {
+      userId: req.userId,
+      targetUserId: req.params.targetUserId,
+    });
     res.status(500).json({ message: "Failed to unfollow user" });
   }
 };
@@ -97,6 +109,7 @@ export const followers = async (req: Request, res: Response) => {
     const list = await getFollowers(id);
     res.status(200).json(list);
   } catch (error) {
+    logError("Failed to fetch followers", error, { profileId: req.params.id });
     res.status(500).json({ message: "Failed to fetch followers" });
   }
 };
@@ -107,6 +120,7 @@ export const following = async (req: Request, res: Response) => {
     const list = await getFollowing(id);
     res.status(200).json(list);
   } catch (error) {
+    logError("Failed to fetch following", error, { profileId: req.params.id });
     res.status(500).json({ message: "Failed to fetch following" });
   }
 };
@@ -121,6 +135,7 @@ export const suggested = async (req: AuthRequest, res: Response) => {
 
     res.status(200).json(users);
   } catch (error) {
+    logError("Failed to fetch suggested users", error, { userId: req.userId });
     res.status(500).json({ message: "Failed to fetch suggested users" });
   }
 };
@@ -159,6 +174,7 @@ export const search = async (req: Request, res: Response) => {
     const users = await searchUsers(query.trim());
     res.status(200).json(users);
   } catch (error) {
+    logError("User search failed", error);
     res.status(500).json({ message: "Search failed" });
   }
 };

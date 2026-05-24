@@ -1,10 +1,14 @@
 import { NextFunction, Request, Response } from "express";
 
-import logger from "../utils/logger";
+import { logError } from "../utils/logger";
 
 const errorHandler = (err: any, req: Request, res: Response, _next: NextFunction) => {
   const statusCode = err.statusCode || 500;
-  logger.error(`ERROR[${req.method}] ${req.url} → ${err.message}`);
+  logError("Unhandled request error", err, {
+    method: req.method,
+    url: req.originalUrl,
+    statusCode,
+  });
   res.status(statusCode).json({
     status: "error",
     message: err.message || "Internal Server Error",
