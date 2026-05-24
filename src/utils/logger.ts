@@ -5,6 +5,7 @@ import Log from "../models/Log";
 
 const logLevel = process.env.LOG_LEVEL || "http";
 const isTestEnvironment = process.env.NODE_ENV === "test";
+const isLocalEnvironment = process.env.NODE_ENV !== "production";
 
 const consoleFormat = winston.format.combine(
   winston.format.colorize(),
@@ -17,12 +18,29 @@ export class MongoLogTransport extends Transport {
     setImmediate(() => this.emit("logged", info));
 
     if (mongoose.connection.readyState === 1) {
+      const { userId, request, response, statusCode, durationMs } = info;
       const metadata = Object.fromEntries(
-        Object.entries(info).filter(([key]) => key !== "level" && key !== "message")
+        Object.entries(info).filter(
+          ([key]) =>
+            ![
+              "level",
+              "message",
+              "userId",
+              "request",
+              "response",
+              "statusCode",
+              "durationMs",
+            ].includes(key)
+        )
       );
       void Log.create({
         level: info.level,
         message: String(info.message),
+        ...(typeof userId === "string" && { userId }),
+        ...(typeof request === "string" && { request }),
+        ...(typeof response === "string" && { response }),
+        ...(typeof statusCode === "number" && { statusCode }),
+        ...(typeof durationMs === "number" && { durationMs }),
         metadata,
       }).catch(() => {
         // A log persistence failure must not interrupt an API request.
@@ -33,11 +51,15 @@ export class MongoLogTransport extends Transport {
   }
 }
 
-const transports: winston.transport[] = [
-  new winston.transports.Console({
-    format: consoleFormat,
-  }),
-];
+const transports: winston.transport[] = [];
+
+if (isLocalEnvironment) {
+  transports.push(
+    new winston.transports.Console({
+      format: consoleFormat,
+    })
+  );
+}
 
 if (!isTestEnvironment) {
   transports.push(new MongoLogTransport());

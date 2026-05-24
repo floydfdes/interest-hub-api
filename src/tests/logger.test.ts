@@ -45,4 +45,33 @@ describe("MongoLogTransport", () => {
     });
     expect(callback).toHaveBeenCalled();
   });
+
+  it("stores request and response fields at the top level for HTTP logs", () => {
+    const transport = new MongoLogTransport();
+
+    transport.log(
+      {
+        level: "http",
+        message: "HTTP request",
+        userId: "507f1f77bcf86cd799439011",
+        request: "GET /api/posts",
+        response: "[]",
+        statusCode: 200,
+        durationMs: 12,
+        method: "GET",
+      },
+      jest.fn()
+    );
+
+    expect(mockCreate).toHaveBeenCalledWith({
+      level: "http",
+      message: "HTTP request",
+      userId: "507f1f77bcf86cd799439011",
+      request: "GET /api/posts",
+      response: "[]",
+      statusCode: 200,
+      durationMs: 12,
+      metadata: { method: "GET" },
+    });
+  });
 });
