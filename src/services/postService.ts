@@ -41,10 +41,16 @@ export const getPostByIdService = async (id: string) => {
     .populate({
       path: "comments",
       model: "Comment",
-      populate: {
-        path: "user",
-        select: "name profilePic",
-      },
+      populate: [
+        {
+          path: "user",
+          select: "name profilePic",
+        },
+        {
+          path: "replies.user",
+          select: "name profilePic",
+        },
+      ],
     });
 
   if (post) {

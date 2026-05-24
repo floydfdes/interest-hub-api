@@ -3,6 +3,17 @@ import Post from "../models/Post";
 
 import mongoose from "mongoose";
 
+const populateCommentUsers = async (comment: IComment | null): Promise<IComment | null> => {
+  if (!comment) return null;
+
+  await comment.populate([
+    { path: "user", select: "name profilePic" },
+    { path: "replies.user", select: "name profilePic" },
+  ]);
+
+  return comment;
+};
+
 export const createCommentService = async (
   userId: string,
   postId: string,
@@ -24,7 +35,7 @@ export const createCommentService = async (
   post.comments.push(savedComment._id);
   await post.save();
 
-  return savedComment;
+  return (await populateCommentUsers(savedComment))!;
 };
 
 export const editCommentService = async (
@@ -37,7 +48,7 @@ export const editCommentService = async (
     { content },
     { new: true }
   );
-  return comment;
+  return populateCommentUsers(comment);
 };
 
 export const deleteCommentService = async (
@@ -48,7 +59,7 @@ export const deleteCommentService = async (
   if (comment) {
     await Post.findByIdAndUpdate(comment.post, { $pull: { comments: comment._id } });
   }
-  return comment;
+  return populateCommentUsers(comment);
 };
 
 export const likeCommentService = async (
@@ -60,7 +71,7 @@ export const likeCommentService = async (
     { $addToSet: { likes: userId } },
     { new: true }
   );
-  return comment;
+  return populateCommentUsers(comment);
 };
 
 export const unlikeCommentService = async (
@@ -72,7 +83,7 @@ export const unlikeCommentService = async (
     { $pull: { likes: userId } },
     { new: true }
   );
-  return comment;
+  return populateCommentUsers(comment);
 };
 
 export const replyToCommentService = async (
@@ -91,7 +102,7 @@ export const replyToCommentService = async (
     { $push: { replies: reply } },
     { new: true }
   );
-  return comment;
+  return populateCommentUsers(comment);
 };
 
 export const editReplyService = async (
@@ -108,7 +119,7 @@ export const editReplyService = async (
   if (!comment || !comment.replies[replyIndex]) return null;
   comment.replies[replyIndex].content = content;
   await comment.save();
-  return comment;
+  return populateCommentUsers(comment);
 };
 
 export const deleteReplyService = async (
@@ -124,7 +135,7 @@ export const deleteReplyService = async (
   if (!comment || !comment.replies[replyIndex]) return null;
   comment.replies.splice(replyIndex, 1);
   await comment.save();
-  return comment;
+  return populateCommentUsers(comment);
 };
 
 export const likeReplyService = async (
@@ -140,7 +151,7 @@ export const likeReplyService = async (
     reply.likes.push(new mongoose.Types.ObjectId(userId));
     await comment.save();
   }
-  return comment;
+  return populateCommentUsers(comment);
 };
 
 export const unlikeReplyService = async (
@@ -154,7 +165,7 @@ export const unlikeReplyService = async (
   const reply = comment.replies[replyIndex];
   reply.likes = reply.likes.filter((likeId) => likeId.toString() !== userId);
   await comment.save();
-  return comment;
+  return populateCommentUsers(comment);
 };
 
 export const replyToReplyService = async (
@@ -175,5 +186,5 @@ export const replyToReplyService = async (
 
   comment.replies.splice(parentReplyIndex + 1, 0, reply);
   await comment.save();
-  return comment;
+  return populateCommentUsers(comment);
 };
