@@ -430,6 +430,129 @@
                 }
             }
         },
+        "/api/posts/following": {
+            "get": {
+                "tags": [
+                    "Posts"
+                ],
+                "summary": "Get posts from followed users",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 50
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Chronological following feed"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            }
+        },
+        "/api/posts/trending": {
+            "get": {
+                "tags": [
+                    "Posts"
+                ],
+                "summary": "Get trending public posts",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "period",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "all"
+                            ],
+                            "default": "week"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 50
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Posts ranked by recent likes, comments, and views"
+                    },
+                    "400": {
+                        "description": "Invalid period"
+                    }
+                }
+            }
+        },
+        "/api/posts/recommended": {
+            "get": {
+                "tags": [
+                    "Posts"
+                ],
+                "summary": "Get recommended posts for the current user",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 50
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Posts ranked using follows, interests, engagement, and recency"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            }
+        },
+        "/api/posts/bookmarks": {
+            "get": {
+                "tags": [
+                    "Posts"
+                ],
+                "summary": "Get the current user's bookmarked posts",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Bookmarked public posts"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            }
+        },
         "/api/posts/{id}": {
             "get": {
                 "tags": [
@@ -627,6 +750,63 @@
                 }
             }
         },
+        "/api/posts/{id}/bookmark": {
+            "post": {
+                "tags": [
+                    "Posts"
+                ],
+                "summary": "Bookmark a public post",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Post bookmarked"
+                    },
+                    "404": {
+                        "description": "Post or user not found"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Posts"
+                ],
+                "summary": "Remove a bookmark",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Bookmark removed"
+                    }
+                }
+            }
+        },
         "/api/users/me": {
             "get": {
                 "tags": [
@@ -641,6 +821,37 @@
                 "responses": {
                     "200": {
                         "description": "User profile returned"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            }
+        },
+        "/api/users/suggested": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get suggested users to follow",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 50
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Users ranked by shared interests and followers"
                     },
                     "401": {
                         "description": "Unauthorized"

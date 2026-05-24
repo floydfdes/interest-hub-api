@@ -5,6 +5,7 @@ import {
   followUser,
   getFollowers,
   getFollowing,
+  getSuggestedUsers,
   getUserById,
   searchUsers,
   unblockUser,
@@ -14,6 +15,11 @@ import {
 
 import { AuthRequest } from "../middleware/authMiddleware";
 import User from "../models/User";
+
+const getLimit = (value: unknown, defaultLimit = 10) => {
+  const parsed = typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;
+  return Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 50) : defaultLimit;
+};
 
 export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
   if (!req.userId) {
@@ -102,6 +108,20 @@ export const following = async (req: Request, res: Response) => {
     res.status(200).json(list);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch following" });
+  }
+};
+
+export const suggested = async (req: AuthRequest, res: Response) => {
+  try {
+    const users = await getSuggestedUsers(req.userId!, getLimit(req.query.limit));
+    if (!users) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch suggested users" });
   }
 };
 

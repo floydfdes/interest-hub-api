@@ -144,3 +144,56 @@ export const searchUsers = async (query: string) => {
 
   return users;
 };
+
+export const getSuggestedUsers = async (userId: string, limit: number) => {
+  const currentUser = await User.findOne({ _id: userId, isDeleted: false }).select(
+    "following interests"
+  );
+  if (!currentUser) return null;
+
+  const interests = currentUser.interests
+    .map((interest) => interest.trim().toLowerCase())
+    .filter(Boolean);
+
+  return User.aggregate([
+    {
+      $match: {
+        _id: { $nin: [currentUser._id, ...currentUser.following] },
+        isDeleted: false,
+        isBlocked: false,
+      },
+    },
+    {
+      $addFields: {
+        matchingInterests: {
+          $size: {
+            $setIntersection: [
+              {
+                $map: {
+                  input: { $ifNull: ["$interests", []] },
+                  as: "interest",
+                  in: { $toLower: "$$interest" },
+                },
+              },
+              interests,
+            ],
+          },
+        },
+        followersCount: { $size: { $ifNull: ["$followers", []] } },
+        profilePic: { $cond: [{ $eq: ["$profilePic", ""] }, null, "$profilePic"] },
+      },
+    },
+    { $sort: { matchingInterests: -1, followersCount: -1, createdAt: -1 } },
+    { $limit: limit },
+    {
+      $project: {
+        name: 1,
+        profilePic: 1,
+        bio: 1,
+        interests: 1,
+        followersCount: 1,
+        matchingInterests: 1,
+      },
+    },
+  ]);
+};

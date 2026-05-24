@@ -7,6 +7,7 @@ import {
   getMe,
   getProfile,
   search,
+  suggested,
   unblock,
   unfollow,
   updateProfile,
@@ -18,6 +19,7 @@ import authMiddleware from "../middleware/authMiddleware";
 const router = express.Router();
 
 router.get("/me", authMiddleware, getMe);
+router.get("/suggested", authMiddleware, suggested);
 router.get("/profile/:id", getProfile);
 router.patch("/update", authMiddleware, updateProfile);
 router.delete("/delete", authMiddleware, deleteAccount);

@@ -1,5 +1,7 @@
+import mongoose from "mongoose";
 import Comment from "../models/Comment";
 import Post, { IPost, Visibility } from "../models/Post";
+import User from "../models/User";
 
 import { uploadImageToCloudinary } from "../utils/uploadImage";
 
@@ -21,6 +23,8 @@ export interface AdvancedPostSearchFilters {
   content?: string;
   tags?: string[];
 }
+
+export type TrendingPeriod = "day" | "week" | "month" | "all";
 
 const normalizeTags = (tags: string[] = []): string[] => [
   ...new Set(tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean)),
@@ -96,6 +100,162 @@ export const advancedSearchPostsService = async ({
   }
 
   return Post.find(filters).populate("author", "name profilePic");
+};
+
+export const getFollowingFeedService = async (userId: string, limit: number) => {
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select("following");
+  if (!user) return null;
+
+  return Post.find({
+    author: { $in: user.following },
+    visibility: "public",
+  })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .populate("author", "name profilePic");
+};
+
+const periodInMilliseconds: Record<Exclude<TrendingPeriod, "all">, number> = {
+  day: 24 * 60 * 60 * 1000,
+  week: 7 * 24 * 60 * 60 * 1000,
+  month: 30 * 24 * 60 * 60 * 1000,
+};
+
+const authorLookupStages: mongoose.PipelineStage[] = [
+  {
+    $lookup: {
+      from: "users",
+      localField: "author",
+      foreignField: "_id",
+      as: "author",
+    },
+  },
+  { $unwind: "$author" },
+  {
+    $set: {
+      author: {
+        _id: "$author._id",
+        name: "$author.name",
+        profilePic: {
+          $cond: [{ $eq: ["$author.profilePic", ""] }, null, "$author.profilePic"],
+        },
+      },
+    },
+  },
+];
+
+export const getTrendingPostsService = async (period: TrendingPeriod, limit: number) => {
+  const match: Record<string, unknown> = { visibility: "public" };
+
+  if (period !== "all") {
+    match.createdAt = { $gte: new Date(Date.now() - periodInMilliseconds[period]) };
+  }
+
+  return Post.aggregate([
+    { $match: match },
+    {
+      $addFields: {
+        trendingScore: {
+          $add: [
+            { $multiply: [{ $size: { $ifNull: ["$likes", []] } }, 3] },
+            { $multiply: [{ $size: { $ifNull: ["$comments", []] } }, 4] },
+            { $multiply: [{ $ifNull: ["$viewCount", 0] }, 0.2] },
+          ],
+        },
+      },
+    },
+    { $sort: { trendingScore: -1, createdAt: -1 } },
+    { $limit: limit },
+    ...authorLookupStages,
+  ]);
+};
+
+export const getRecommendedPostsService = async (userId: string, limit: number) => {
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select("following interests");
+  if (!user) return null;
+
+  const interests = user.interests.map((interest) => interest.trim().toLowerCase()).filter(Boolean);
+
+  return Post.aggregate([
+    {
+      $match: {
+        visibility: "public",
+        author: { $ne: user._id },
+      },
+    },
+    {
+      $addFields: {
+        isFollowedAuthor: { $cond: [{ $in: ["$author", user.following] }, 1, 0] },
+        matchesCategory: {
+          $cond: [{ $in: [{ $toLower: "$category" }, interests] }, 1, 0],
+        },
+        matchingTags: {
+          $size: {
+            $setIntersection: [
+              {
+                $map: {
+                  input: { $ifNull: ["$tags", []] },
+                  as: "tag",
+                  in: { $toLower: "$$tag" },
+                },
+              },
+              interests,
+            ],
+          },
+        },
+        isRecent: {
+          $cond: [{ $gte: ["$createdAt", new Date(Date.now() - periodInMilliseconds.week)] }, 1, 0],
+        },
+      },
+    },
+    {
+      $addFields: {
+        recommendationScore: {
+          $add: [
+            { $multiply: ["$isFollowedAuthor", 50] },
+            { $multiply: ["$matchesCategory", 20] },
+            { $multiply: ["$matchingTags", 12] },
+            { $multiply: [{ $size: { $ifNull: ["$likes", []] } }, 2] },
+            { $multiply: [{ $size: { $ifNull: ["$comments", []] } }, 3] },
+            { $multiply: ["$isRecent", 10] },
+          ],
+        },
+      },
+    },
+    { $sort: { recommendationScore: -1, createdAt: -1 } },
+    { $limit: limit },
+    ...authorLookupStages,
+  ]);
+};
+
+export const bookmarkPostService = async (postId: string, userId: string) => {
+  const post = await Post.findOne({ _id: postId, visibility: "public" }).select("_id");
+  if (!post) return null;
+
+  return User.findOneAndUpdate(
+    { _id: userId, isDeleted: false },
+    { $addToSet: { savedPosts: post._id } },
+    { new: true }
+  );
+};
+
+export const removeBookmarkService = async (postId: string, userId: string) => {
+  return User.findOneAndUpdate(
+    { _id: userId, isDeleted: false },
+    { $pull: { savedPosts: postId } },
+    { new: true }
+  );
+};
+
+export const getBookmarkedPostsService = async (userId: string) => {
+  const user = await User.findOne({ _id: userId, isDeleted: false }).populate({
+    path: "savedPosts",
+    match: { visibility: "public" },
+    options: { sort: { createdAt: -1 } },
+    populate: { path: "author", select: "name profilePic" },
+  });
+
+  return user?.savedPosts ?? null;
 };
 
 export const getPostByIdService = async (id: string) => {

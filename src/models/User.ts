@@ -10,6 +10,7 @@ export interface IUser extends Document {
   interests: string[];
   followers: Types.ObjectId[];
   following: Types.ObjectId[];
+  savedPosts: Types.ObjectId[];
   otp: string | null;
   otpExpires: Date | null;
   is2FAEnabled: boolean;
@@ -39,6 +40,7 @@ const UserSchema = new Schema<IUser>(
     interests: { type: [String], default: [] },
     followers: [{ type: Schema.Types.ObjectId, ref: "User" }],
     following: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    savedPosts: [{ type: Schema.Types.ObjectId, ref: "Post" }],
     otp: { type: String, default: null },
     otpExpires: { type: Date, default: null },
     is2FAEnabled: { type: Boolean, default: false },

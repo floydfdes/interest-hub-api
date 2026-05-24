@@ -1,12 +1,19 @@
 import { Request, Response } from "express";
 import {
   advancedSearchPostsService,
+  bookmarkPostService,
   createPostService,
   deletePostService,
+  getBookmarkedPostsService,
   getAllPostsService,
+  getFollowingFeedService,
   getPostByIdService,
+  getRecommendedPostsService,
+  getTrendingPostsService,
   likePostService,
+  removeBookmarkService,
   searchPostsService,
+  TrendingPeriod,
   unlikePostService,
   updatePostService,
 } from "../services/postService";
@@ -14,6 +21,11 @@ import {
 import mongoose from "mongoose";
 import { AuthRequest } from "../middleware/authMiddleware";
 import logger from "../utils/logger";
+
+const getLimit = (value: unknown, defaultLimit = 20) => {
+  const parsed = typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;
+  return Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 50) : defaultLimit;
+};
 
 export const createPost = async (req: AuthRequest, res: Response) => {
   try {
@@ -88,6 +100,96 @@ export const advancedSearchPosts = async (req: Request, res: Response) => {
     res.json(posts);
   } catch (error) {
     res.status(500).json({ message: "Failed to search posts" });
+  }
+};
+
+export const getFollowingFeed = async (req: AuthRequest, res: Response) => {
+  try {
+    const posts = await getFollowingFeedService(req.userId!, getLimit(req.query.limit));
+    if (!posts) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.json(posts);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch following feed" });
+  }
+};
+
+export const getTrendingPosts = async (req: Request, res: Response) => {
+  const rawPeriod = typeof req.query.period === "string" ? req.query.period : "week";
+  const validPeriods: TrendingPeriod[] = ["day", "week", "month", "all"];
+
+  if (!validPeriods.includes(rawPeriod as TrendingPeriod)) {
+    res.status(400).json({ message: "Period must be day, week, month, or all" });
+    return;
+  }
+
+  try {
+    const posts = await getTrendingPostsService(
+      rawPeriod as TrendingPeriod,
+      getLimit(req.query.limit)
+    );
+    res.json(posts);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch trending posts" });
+  }
+};
+
+export const getRecommendedPosts = async (req: AuthRequest, res: Response) => {
+  try {
+    const posts = await getRecommendedPostsService(req.userId!, getLimit(req.query.limit));
+    if (!posts) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.json(posts);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch recommended posts" });
+  }
+};
+
+export const bookmarkPost = async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await bookmarkPostService(req.params.id, req.userId!);
+    if (!user) {
+      res.status(404).json({ message: "Post or user not found" });
+      return;
+    }
+
+    res.status(200).json({ message: "Post bookmarked" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to bookmark post" });
+  }
+};
+
+export const removeBookmark = async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await removeBookmarkService(req.params.id, req.userId!);
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.status(200).json({ message: "Bookmark removed" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to remove bookmark" });
+  }
+};
+
+export const getBookmarkedPosts = async (req: AuthRequest, res: Response) => {
+  try {
+    const posts = await getBookmarkedPostsService(req.userId!);
+    if (!posts) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.json(posts);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch bookmarks" });
   }
 };
 
