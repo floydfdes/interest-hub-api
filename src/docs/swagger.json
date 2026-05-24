@@ -21,6 +21,10 @@
         {
             "name": "Comments",
             "description": "Comment operations"
+        },
+        {
+            "name": "Admin",
+            "description": "Administrator dashboard and moderation operations"
         }
     ],
     "components": {
@@ -1551,6 +1555,168 @@
                         "description": "Reply not found"
                     }
                 }
+            }
+        },
+        "/api/admin/access": {
+            "get": {
+                "tags": ["Admin"],
+                "summary": "Confirm administrator access",
+                "responses": {
+                    "200": { "description": "Authenticated user is an administrator" },
+                    "403": { "description": "Administrator access required" }
+                }
+            }
+        },
+        "/api/admin/dashboard": {
+            "get": {
+                "tags": ["Admin"],
+                "summary": "Get admin dashboard counts and recent records",
+                "responses": {
+                    "200": { "description": "Dashboard data" },
+                    "403": { "description": "Administrator access required" }
+                }
+            }
+        },
+        "/api/admin/users": {
+            "get": {
+                "tags": ["Admin"],
+                "summary": "List and search users",
+                "parameters": [
+                    { "name": "query", "in": "query", "schema": { "type": "string" } },
+                    { "name": "page", "in": "query", "schema": { "type": "integer" } },
+                    { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+                ],
+                "responses": {
+                    "200": { "description": "Paginated users" },
+                    "403": { "description": "Administrator access required" }
+                }
+            },
+            "post": {
+                "tags": ["Admin"],
+                "summary": "Create a user",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["name", "email", "password"],
+                                "properties": {
+                                    "name": { "type": "string" },
+                                    "email": { "type": "string", "format": "email" },
+                                    "password": { "type": "string", "minLength": 6 },
+                                    "role": { "type": "string", "enum": ["user", "admin"] },
+                                    "bio": { "type": "string" },
+                                    "interests": { "type": "array", "items": { "type": "string" } },
+                                    "isBlocked": { "type": "boolean" }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": { "description": "User created" },
+                    "403": { "description": "Administrator access required" }
+                }
+            }
+        },
+        "/api/admin/users/{id}": {
+            "parameters": [
+                { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+            ],
+            "get": {
+                "tags": ["Admin"],
+                "summary": "Get a user and their posts",
+                "responses": {
+                    "200": { "description": "User details" },
+                    "404": { "description": "User not found" }
+                }
+            },
+            "patch": {
+                "tags": ["Admin"],
+                "summary": "Update user details or reset password",
+                "responses": {
+                    "200": { "description": "User updated" },
+                    "404": { "description": "User not found" }
+                }
+            },
+            "delete": {
+                "tags": ["Admin"],
+                "summary": "Permanently delete a user and owned content",
+                "responses": {
+                    "200": { "description": "User deleted" },
+                    "404": { "description": "User not found" }
+                }
+            }
+        },
+        "/api/admin/users/{id}/block": {
+            "patch": {
+                "tags": ["Admin"],
+                "summary": "Block a user",
+                "parameters": [
+                    { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+                ],
+                "responses": { "200": { "description": "User blocked" } }
+            }
+        },
+        "/api/admin/users/{id}/unblock": {
+            "patch": {
+                "tags": ["Admin"],
+                "summary": "Unblock a user",
+                "parameters": [
+                    { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+                ],
+                "responses": { "200": { "description": "User unblocked" } }
+            }
+        },
+        "/api/admin/posts": {
+            "get": {
+                "tags": ["Admin"],
+                "summary": "List posts for moderation",
+                "parameters": [
+                    { "name": "query", "in": "query", "schema": { "type": "string" } },
+                    { "name": "authorId", "in": "query", "schema": { "type": "string" } },
+                    { "name": "visibility", "in": "query", "schema": { "type": "string", "enum": ["public", "private", "followersOnly"] } },
+                    { "name": "page", "in": "query", "schema": { "type": "integer" } },
+                    { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+                ],
+                "responses": { "200": { "description": "Paginated posts" } }
+            }
+        },
+        "/api/admin/posts/{id}": {
+            "parameters": [
+                { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+            ],
+            "get": {
+                "tags": ["Admin"],
+                "summary": "Get post with comments and replies for moderation",
+                "responses": { "200": { "description": "Post details" } }
+            },
+            "delete": {
+                "tags": ["Admin"],
+                "summary": "Permanently delete a post and its comments",
+                "responses": { "200": { "description": "Post deleted" } }
+            }
+        },
+        "/api/admin/comments/{commentId}": {
+            "delete": {
+                "tags": ["Admin"],
+                "summary": "Permanently delete a comment and its replies",
+                "parameters": [
+                    { "name": "commentId", "in": "path", "required": true, "schema": { "type": "string" } }
+                ],
+                "responses": { "200": { "description": "Comment deleted" } }
+            }
+        },
+        "/api/admin/comments/{commentId}/replies/{replyIndex}": {
+            "delete": {
+                "tags": ["Admin"],
+                "summary": "Permanently delete a reply",
+                "parameters": [
+                    { "name": "commentId", "in": "path", "required": true, "schema": { "type": "string" } },
+                    { "name": "replyIndex", "in": "path", "required": true, "schema": { "type": "integer" } }
+                ],
+                "responses": { "200": { "description": "Reply deleted" } }
             }
         }
     }

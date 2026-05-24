@@ -10,6 +10,7 @@ import connectDB from "./config/database";
 import swaggerDocument from "./docs/swagger.json";
 import errorHandler from "./middleware/errorHandler";
 import requestLogger from "./middleware/requestLogger";
+import adminRoutes from "./routes/adminRoutes";
 import authRoutes from "./routes/authRoutes";
 import commentRoutes from "./routes/commentRoutes";
 import contactRoutes from "./routes/contactRoutes";
@@ -47,6 +48,7 @@ app.use(
   })
 );
 app.use("/api/auth", authRoutes);
+app.use("/api/admin", adminRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/comments", commentRoutes);
