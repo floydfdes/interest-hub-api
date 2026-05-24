@@ -9,7 +9,13 @@ export const createPostValidation = [
     .isIn(["public", "private", "followersOnly"])
     .withMessage("Visibility must be one of: public, private, followersOnly"),
   body("tags").optional().isArray().withMessage("Tags must be an array"),
-  body("category").isString().withMessage("Category must be a string"),
+  body("tags.*")
+    .optional()
+    .isString()
+    .withMessage("Each tag must be a string")
+    .trim()
+    .notEmpty()
+    .withMessage("Tags cannot be empty"),
 ];
 
 export const updatePostValidation = [
@@ -20,6 +26,13 @@ export const updatePostValidation = [
     .optional()
     .isIn(["public", "private", "followersOnly"])
     .withMessage("Invalid visibility value"),
-  body("tags").optional().isArray(),
+  body("tags").optional().isArray().withMessage("Tags must be an array"),
+  body("tags.*")
+    .optional()
+    .isString()
+    .withMessage("Each tag must be a string")
+    .trim()
+    .notEmpty()
+    .withMessage("Tags cannot be empty"),
   body("category").optional().isString(),
 ];

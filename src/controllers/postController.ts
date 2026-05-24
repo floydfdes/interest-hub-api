@@ -1,10 +1,12 @@
 import { Request, Response } from "express";
 import {
+  advancedSearchPostsService,
   createPostService,
   deletePostService,
   getAllPostsService,
   getPostByIdService,
   likePostService,
+  searchPostsService,
   unlikePostService,
   updatePostService,
 } from "../services/postService";
@@ -48,6 +50,44 @@ export const getAllPosts = async (_req: Request, res: Response) => {
     res.json(posts);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch posts" });
+  }
+};
+
+export const searchPosts = async (req: Request, res: Response) => {
+  const query = typeof req.query.query === "string" ? req.query.query.trim() : "";
+
+  if (!query) {
+    res.status(400).json({ message: "Provide query to search posts" });
+    return;
+  }
+
+  try {
+    const posts = await searchPostsService(query);
+
+    res.json(posts);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to search posts" });
+  }
+};
+
+export const advancedSearchPosts = async (req: Request, res: Response) => {
+  const category = typeof req.query.category === "string" ? req.query.category.trim() : undefined;
+  const title = typeof req.query.title === "string" ? req.query.title.trim() : undefined;
+  const content = typeof req.query.content === "string" ? req.query.content.trim() : undefined;
+  const rawTags = typeof req.query.tags === "string" ? req.query.tags.split(",") : [];
+  const tags = rawTags.map((tag) => tag.trim()).filter(Boolean);
+
+  try {
+    const posts = await advancedSearchPostsService({
+      category,
+      title,
+      content,
+      tags,
+    });
+
+    res.json(posts);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to search posts" });
   }
 };
 

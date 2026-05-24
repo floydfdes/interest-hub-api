@@ -15,6 +15,19 @@ type UpdatePostData = Partial<
   image?: string;
 };
 
+export interface AdvancedPostSearchFilters {
+  category?: string;
+  title?: string;
+  content?: string;
+  tags?: string[];
+}
+
+const normalizeTags = (tags: string[] = []): string[] => [
+  ...new Set(tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean)),
+];
+
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 export const createPostService = async (postData: CreatePostData) => {
   if (!postData.image) throw new Error("Image is required");
 
@@ -24,7 +37,7 @@ export const createPostService = async (postData: CreatePostData) => {
     title: postData.title,
     content: postData.content,
     category: postData.category,
-    tags: postData.tags,
+    tags: normalizeTags(postData.tags),
     visibility: postData.visibility,
     author: postData.author,
     image: cloudinaryUrl,
@@ -33,6 +46,56 @@ export const createPostService = async (postData: CreatePostData) => {
 
 export const getAllPostsService = async () => {
   return Post.find({ visibility: "public" }).populate("author", "name profilePic");
+};
+
+export const searchPostsService = async (query: string) => {
+  const filters: Record<string, unknown> = { visibility: "public" };
+  const trimmedQuery = query.trim();
+
+  if (trimmedQuery) {
+    const searchTerm = new RegExp(escapeRegExp(trimmedQuery), "i");
+    filters.$or = [
+      { title: searchTerm },
+      { content: searchTerm },
+      { category: searchTerm },
+      { tags: searchTerm },
+    ];
+  }
+
+  return Post.find(filters).populate("author", "name profilePic");
+};
+
+export const advancedSearchPostsService = async ({
+  category,
+  title,
+  content,
+  tags,
+}: AdvancedPostSearchFilters) => {
+  const filters: Record<string, unknown> = { visibility: "public" };
+  const trimmedCategory = category?.trim();
+  const trimmedTitle = title?.trim();
+  const trimmedContent = content?.trim();
+
+  if (trimmedCategory) {
+    filters.category = new RegExp(escapeRegExp(trimmedCategory), "i");
+  }
+
+  if (trimmedTitle) {
+    filters.title = new RegExp(escapeRegExp(trimmedTitle), "i");
+  }
+
+  if (trimmedContent) {
+    filters.content = new RegExp(escapeRegExp(trimmedContent), "i");
+  }
+
+  const normalizedTags = normalizeTags(tags);
+  if (normalizedTags.length > 0) {
+    filters.tags = {
+      $all: normalizedTags.map((tag) => new RegExp(escapeRegExp(tag), "i")),
+    };
+  }
+
+  return Post.find(filters).populate("author", "name profilePic");
 };
 
 export const getPostByIdService = async (id: string) => {
@@ -75,7 +138,7 @@ export const updatePostService = async (id: string, userId: string, updates: Upd
     ...(typeof updates.title === "string" && { title: updates.title }),
     ...(typeof updates.content === "string" && { content: updates.content }),
     ...(typeof updates.category === "string" && { category: updates.category }),
-    ...(Array.isArray(updates.tags) && { tags: updates.tags }),
+    ...(Array.isArray(updates.tags) && { tags: normalizeTags(updates.tags) }),
     ...(updates.visibility && { visibility: updates.visibility }),
     ...(updates.image && { image: updates.image }),
   };

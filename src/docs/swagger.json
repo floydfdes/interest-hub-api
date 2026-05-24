@@ -357,6 +357,79 @@
                 }
             }
         },
+        "/api/posts/search": {
+            "get": {
+                "tags": [
+                    "Posts"
+                ],
+                "summary": "Search public posts",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Text to match in title, content, category, or tags"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of matching public posts"
+                    },
+                    "400": {
+                        "description": "Query is required"
+                    }
+                }
+            }
+        },
+        "/api/posts/advanced-search": {
+            "get": {
+                "tags": [
+                    "Posts"
+                ],
+                "summary": "Filter public posts by optional text fields",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "title",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Text to match in the post title"
+                    },
+                    {
+                        "in": "query",
+                        "name": "content",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Text to match in the post content"
+                    },
+                    {
+                        "in": "query",
+                        "name": "category",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Text to match in the post category"
+                    },
+                    {
+                        "in": "query",
+                        "name": "tags",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Comma-separated tag text values that must all match"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of matching public posts"
+                    }
+                }
+            }
+        },
         "/api/posts/{id}": {
             "get": {
                 "tags": [

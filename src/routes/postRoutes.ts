@@ -1,9 +1,11 @@
 import {
+  advancedSearchPosts,
   createPost,
   deletePost,
   getAllPosts,
   getPostById,
   likePost,
+  searchPosts,
   unlikePost,
   updatePost,
 } from "../controllers/postController";
@@ -17,6 +19,8 @@ const router = express.Router();
 
 router.post("/", authMiddleware, createPostValidation, validate, createPost);
 router.get("/", getAllPosts);
+router.get("/search", searchPosts);
+router.get("/advanced-search", advancedSearchPosts);
 router.get("/:id", getPostById);
 router.put("/:id", authMiddleware, updatePostValidation, validate, updatePost);
 router.delete("/:id", authMiddleware, deletePost);
