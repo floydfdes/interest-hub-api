@@ -183,7 +183,9 @@ export const getSuggestedUsers = async (userId: string, limit: number) => {
         profilePic: { $cond: [{ $eq: ["$profilePic", ""] }, null, "$profilePic"] },
       },
     },
-    { $sort: { matchingInterests: -1, followersCount: -1, createdAt: -1 } },
+    { $group: { _id: "$_id", candidate: { $first: "$$ROOT" } } },
+    { $replaceRoot: { newRoot: "$candidate" } },
+    { $sort: { matchingInterests: -1, followersCount: -1, createdAt: -1, _id: -1 } },
     { $limit: limit },
     {
       $project: {

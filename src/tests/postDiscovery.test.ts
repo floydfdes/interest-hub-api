@@ -157,6 +157,12 @@ describe("suggested users", () => {
         isBlocked: false,
       },
     });
+    expect(pipeline).toContainEqual({
+      $group: { _id: "$_id", candidate: { $first: "$$ROOT" } },
+    });
+    expect(pipeline).toContainEqual({
+      $sort: { matchingInterests: -1, followersCount: -1, createdAt: -1, _id: -1 },
+    });
     expect(pipeline).toContainEqual({ $limit: 5 });
   });
 });
