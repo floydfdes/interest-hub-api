@@ -11,6 +11,7 @@ import {
 
 import mongoose from "mongoose";
 import { AuthRequest } from "../middleware/authMiddleware";
+import logger from "../utils/logger";
 
 export const createPost = async (req: AuthRequest, res: Response) => {
   try {
@@ -33,6 +34,9 @@ export const createPost = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(post);
   } catch (error) {
+    logger.error(
+      `Failed to create post: ${error instanceof Error ? error.message : "Unknown upload error"}`
+    );
     res.status(500).json({ message: "Failed to create post" });
   }
 };

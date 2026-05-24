@@ -1,20 +1,25 @@
 import { v2 as cloudinary } from "cloudinary";
 import sharp from "sharp";
+import logger from "./logger";
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+const configureCloudinary = (): void => {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
-export const uploadImageToCloudinary = async (base64: string, folder: string): Promise<string> => {
-  if (
-    !process.env.CLOUDINARY_CLOUD_NAME ||
-    !process.env.CLOUDINARY_API_KEY ||
-    !process.env.CLOUDINARY_API_SECRET
-  ) {
+  if (!cloudName || !apiKey || !apiSecret) {
     throw new Error("Cloudinary configuration is missing");
   }
+
+  cloudinary.config({
+    cloud_name: cloudName,
+    api_key: apiKey,
+    api_secret: apiSecret,
+  });
+};
+
+export const uploadImageToCloudinary = async (base64: string, folder: string): Promise<string> => {
+  configureCloudinary();
 
   try {
     const base64Data = base64.replace(/^data:image\/\w+;base64,/, "");
@@ -38,7 +43,10 @@ export const uploadImageToCloudinary = async (base64: string, folder: string): P
     });
 
     return uploadResult;
-  } catch {
-    throw new Error("Image upload failed");
+  } catch (error) {
+    logger.error(
+      `Cloudinary image upload failed: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw new Error("Image upload failed", { cause: error });
   }
 };
