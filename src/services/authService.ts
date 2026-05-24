@@ -32,7 +32,7 @@ export const registerUserService = async (name: string, email: string, password:
       id: user._id,
       name: user.name,
       email: user.email,
-      profilePic: user.profilePic,
+      profilePic: user.profilePic || null,
     },
   };
 };
@@ -54,7 +54,7 @@ export const loginUserService = async (email: string, password: string) => {
       id: user._id,
       name: user.name,
       email: user.email,
-      profilePic: user.profilePic,
+      profilePic: user.profilePic || null,
     },
   };
 };

@@ -10,7 +10,7 @@ export const getUserById = async (id: string) => {
   return {
     _id: user._id,
     name: user.name,
-    profilePic: user.profilePic,
+    profilePic: user.profilePic || null,
     bio: user.bio,
     interests: user.interests,
     followersCount: user.followers.length,

@@ -5,7 +5,7 @@ export interface IUser extends Document {
   email: string;
   password: string;
   role: "user" | "admin";
-  profilePic: string;
+  profilePic: string | null;
   bio: string;
   interests: string[];
   followers: Types.ObjectId[];
@@ -33,7 +33,7 @@ const UserSchema = new Schema<IUser>(
     role: { type: String, enum: ["user", "admin"], default: "user" },
     profilePic: {
       type: String,
-      default: "",
+      default: null,
     },
     bio: { type: String, maxlength: 160, default: "" },
     interests: { type: [String], default: [] },
@@ -55,7 +55,17 @@ const UserSchema = new Schema<IUser>(
     isDeleted: { type: Boolean, default: false },
     deletedAt: { type: Date, default: null },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: {
+      transform: (_doc, ret) => {
+        if (ret.profilePic === "") {
+          ret.profilePic = null;
+        }
+        return ret;
+      },
+    },
+  }
 );
 
 const User = model<IUser>("User", UserSchema);
