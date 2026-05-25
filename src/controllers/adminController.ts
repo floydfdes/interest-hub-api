@@ -19,12 +19,7 @@ import {
 } from "../services/adminService";
 import { Visibility } from "../models/Post";
 import { logError } from "../utils/logger";
-
-const getPositiveInteger = (value: unknown, fallback: number, maximum?: number) => {
-  const parsed = typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;
-  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
-  return maximum ? Math.min(parsed, maximum) : parsed;
-};
+import { getPagination } from "../utils/pagination";
 
 const errorResponse = (res: Response, error: unknown, operation: string): void => {
   const message = error instanceof Error ? error.message : operation;
@@ -56,9 +51,7 @@ export const getAdminDashboard = async (_req: AuthRequest, res: Response) => {
 export const getAdminUsers = async (req: AuthRequest, res: Response) => {
   try {
     const query = typeof req.query.query === "string" ? req.query.query.trim() : undefined;
-    const page = getPositiveInteger(req.query.page, 1);
-    const limit = getPositiveInteger(req.query.limit, 20, 100);
-    res.status(200).json(await getAdminUsersService(query, { page, limit }));
+    res.status(200).json(await getAdminUsersService(query, getPagination(req.query, 20, 100)));
   } catch (error) {
     errorResponse(res, error, "Failed to fetch users");
   }
@@ -160,8 +153,7 @@ export const getAdminPosts = async (req: AuthRequest, res: Response) => {
         query: typeof req.query.query === "string" ? req.query.query.trim() : undefined,
         authorId: typeof req.query.authorId === "string" ? req.query.authorId : undefined,
         visibility: rawVisibility as Visibility | undefined,
-        page: getPositiveInteger(req.query.page, 1),
-        limit: getPositiveInteger(req.query.limit, 20, 100),
+        pagination: getPagination(req.query, 20, 100),
       })
     );
   } catch (error) {

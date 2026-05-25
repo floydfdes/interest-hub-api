@@ -11,6 +11,7 @@ import {
   getRecommendedPostsService,
   getTrendingPostsService,
   likePostService,
+  getPostLikesService,
   removeBookmarkService,
   searchPostsService,
   TrendingPeriod,
@@ -21,6 +22,7 @@ import {
 import mongoose from "mongoose";
 import { AuthRequest } from "../middleware/authMiddleware";
 import { logError } from "../utils/logger";
+import { getPagination } from "../utils/pagination";
 
 const getLimit = (value: unknown, defaultLimit = 20) => {
   const parsed = typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;
@@ -55,9 +57,9 @@ export const createPost = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getAllPosts = async (_req: Request, res: Response) => {
+export const getAllPosts = async (req: Request, res: Response) => {
   try {
-    const posts = await getAllPostsService();
+    const posts = await getAllPostsService(getPagination(req.query));
 
     res.json(posts);
   } catch (error) {
@@ -108,7 +110,7 @@ export const advancedSearchPosts = async (req: Request, res: Response) => {
 
 export const getFollowingFeed = async (req: AuthRequest, res: Response) => {
   try {
-    const posts = await getFollowingFeedService(req.userId!, getLimit(req.query.limit));
+    const posts = await getFollowingFeedService(req.userId!, getPagination(req.query));
     if (!posts) {
       res.status(404).json({ message: "User not found" });
       return;
@@ -285,6 +287,21 @@ export const likePost = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     logError("Failed to like post", error, { postId: req.params.id, userId: req.userId });
     res.status(500).json({ message: "Failed to like post" });
+  }
+};
+
+export const getPostLikes = async (req: Request, res: Response) => {
+  try {
+    const likes = await getPostLikesService(req.params.id, getPagination(req.query));
+    if (!likes) {
+      res.status(404).json({ message: "Post not found" });
+      return;
+    }
+
+    res.status(200).json(likes);
+  } catch (error) {
+    logError("Failed to fetch post likes", error, { postId: req.params.id });
+    res.status(500).json({ message: "Failed to fetch post likes" });
   }
 };
 

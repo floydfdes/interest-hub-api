@@ -2,8 +2,10 @@ import mongoose from "mongoose";
 
 const mockPostPopulate = jest.fn().mockResolvedValue([]);
 const mockPostLimit = jest.fn(() => ({ populate: mockPostPopulate }));
-const mockPostSort = jest.fn(() => ({ limit: mockPostLimit }));
+const mockPostSkip = jest.fn(() => ({ limit: mockPostLimit }));
+const mockPostSort = jest.fn(() => ({ skip: mockPostSkip }));
 const mockPostFind = jest.fn(() => ({ sort: mockPostSort }));
+const mockPostCountDocuments = jest.fn().mockResolvedValue(24);
 const mockPostAggregate = jest.fn().mockResolvedValue([]);
 const mockPostSelect = jest.fn();
 const mockPostFindOne = jest.fn(() => ({ select: mockPostSelect }));
@@ -18,6 +20,7 @@ jest.mock("../models/Post", () => ({
   __esModule: true,
   default: {
     aggregate: mockPostAggregate,
+    countDocuments: mockPostCountDocuments,
     find: mockPostFind,
     findOne: mockPostFindOne,
   },
@@ -45,10 +48,12 @@ import {
   bookmarkPostService,
   getBookmarkedPostsService,
   getFollowingFeedService,
+  getPostLikesService,
   getRecommendedPostsService,
   getTrendingPostsService,
 } from "../services/postService";
 import { getSuggestedUsers } from "../services/userService";
+import { getFollowers } from "../services/userService";
 
 describe("post discovery services", () => {
   const userId = "507f1f77bcf86cd799439011";
@@ -66,14 +71,23 @@ describe("post discovery services", () => {
   });
 
   it("builds a chronological public feed from followed authors", async () => {
-    await getFollowingFeedService(userId, 20);
+    const result = await getFollowingFeedService(userId, { page: 2, limit: 20, skip: 20 });
 
     expect(mockPostFind).toHaveBeenCalledWith({
       author: { $in: [followedId] },
       visibility: "public",
     });
     expect(mockPostSort).toHaveBeenCalledWith({ createdAt: -1 });
+    expect(mockPostSkip).toHaveBeenCalledWith(20);
     expect(mockPostLimit).toHaveBeenCalledWith(20);
+    expect(result?.pagination).toEqual({
+      page: 2,
+      limit: 20,
+      total: 24,
+      totalPages: 2,
+      hasNextPage: false,
+      hasPreviousPage: true,
+    });
   });
 
   it("ranks trending posts in the requested recent time window", async () => {
@@ -134,6 +148,24 @@ describe("post discovery services", () => {
     });
     expect(result).toEqual(savedPosts);
   });
+
+  it("returns a paginated list of users who liked a public post", async () => {
+    const populate = jest.fn().mockResolvedValue(undefined);
+    mockPostSelect.mockResolvedValueOnce({ likes: [postId], populate });
+
+    const result = await getPostLikesService(postId.toString(), {
+      page: 1,
+      limit: 10,
+      skip: 0,
+    });
+
+    expect(populate).toHaveBeenCalledWith({
+      path: "likes",
+      select: "name profilePic",
+      options: { skip: 0, limit: 10 },
+    });
+    expect(result?.pagination.total).toBe(1);
+  });
 });
 
 describe("suggested users", () => {
@@ -164,5 +196,31 @@ describe("suggested users", () => {
       $sort: { matchingInterests: -1, followersCount: -1, createdAt: -1, _id: -1 },
     });
     expect(pipeline).toContainEqual({ $limit: 5 });
+  });
+});
+
+describe("follower lists", () => {
+  it("populates only the requested followers page and returns the total", async () => {
+    const firstFollower = new mongoose.Types.ObjectId("507f1f77bcf86cd799439031");
+    const secondFollower = new mongoose.Types.ObjectId("507f1f77bcf86cd799439032");
+    const populate = jest.fn().mockResolvedValue(undefined);
+    mockUserFindOne.mockReturnValueOnce({ select: mockUserSelect });
+    mockUserSelect.mockResolvedValueOnce({
+      followers: [firstFollower, secondFollower],
+      populate,
+    });
+
+    const result = await getFollowers("507f1f77bcf86cd799439030", {
+      page: 2,
+      limit: 1,
+      skip: 1,
+    });
+
+    expect(populate).toHaveBeenCalledWith({
+      path: "followers",
+      select: "name profilePic",
+      options: { skip: 1, limit: 1 },
+    });
+    expect(result?.pagination.total).toBe(2);
   });
 });

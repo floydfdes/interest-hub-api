@@ -7,6 +7,7 @@ import {
   getBookmarkedPosts,
   getFollowingFeed,
   getPostById,
+  getPostLikes,
   getRecommendedPosts,
   getTrendingPosts,
   likePost,
@@ -31,6 +32,7 @@ router.get("/following", authMiddleware, getFollowingFeed);
 router.get("/trending", getTrendingPosts);
 router.get("/recommended", authMiddleware, getRecommendedPosts);
 router.get("/bookmarks", authMiddleware, getBookmarkedPosts);
+router.get("/:id/likes", getPostLikes);
 router.get("/:id", getPostById);
 router.put("/:id", authMiddleware, updatePostValidation, validate, updatePost);
 router.delete("/:id", authMiddleware, deletePost);

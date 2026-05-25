@@ -71,7 +71,10 @@ describe("Post API", () => {
   it("should get all posts", async () => {
     const res = await request(app).get(API);
     expect(res.statusCode).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
+    expect(Array.isArray(res.body.items)).toBe(true);
+    expect(res.body.pagination).toEqual(
+      expect.objectContaining({ page: 1, limit: 20, total: expect.any(Number) })
+    );
   });
 
   it("should get the first post by ID", async () => {

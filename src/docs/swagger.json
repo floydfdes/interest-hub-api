@@ -290,9 +290,30 @@
                     "Posts"
                 ],
                 "summary": "Get all public posts",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "default": 1
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 50,
+                            "default": 20
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "List of posts"
+                        "description": "Paginated public posts returned as items and pagination metadata"
                     }
                 }
             },
@@ -448,16 +469,27 @@
                 "parameters": [
                     {
                         "in": "query",
+                        "name": "page",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "default": 1
+                        }
+                    },
+                    {
+                        "in": "query",
                         "name": "limit",
                         "schema": {
                             "type": "integer",
-                            "maximum": 50
+                            "minimum": 1,
+                            "maximum": 50,
+                            "default": 20
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Chronological following feed"
+                        "description": "Paginated chronological following feed returned as items and pagination metadata"
                     },
                     "401": {
                         "description": "Unauthorized"
@@ -716,6 +748,51 @@
                     },
                     "401": {
                         "description": "Unauthorized"
+                    }
+                }
+            }
+        },
+        "/api/posts/{id}/likes": {
+            "get": {
+                "tags": [
+                    "Posts"
+                ],
+                "summary": "Get users who liked a public post",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 50,
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated users who liked the post returned as items and pagination metadata"
+                    },
+                    "404": {
+                        "description": "Post not found"
                     }
                 }
             }
@@ -1011,11 +1088,30 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 50,
+                            "default": 20
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "List of followers"
+                        "description": "Paginated followers returned as items and pagination metadata"
                     }
                 }
             }
@@ -1034,11 +1130,30 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 50,
+                            "default": 20
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "List of following users"
+                        "description": "Paginated following users returned as items and pagination metadata"
                     }
                 }
             }

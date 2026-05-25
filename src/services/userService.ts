@@ -1,5 +1,6 @@
 import User from "../models/User";
 import { uploadImageToCloudinary } from "../utils/uploadImage";
+import { paginatedResponse, PaginationParams } from "../utils/pagination";
 
 export const getUserById = async (id: string) => {
   const user = await User.findOne({ _id: id, isDeleted: false }).select(
@@ -92,20 +93,32 @@ export const unfollowUser = async (userId: string, targetUserId: string) => {
   return true;
 };
 
-export const getFollowers = async (userId: string) => {
-  const user = await User.findOne({ _id: userId, isDeleted: false }).populate(
-    "followers",
-    "name profilePic"
-  );
-  return user?.followers || [];
+export const getFollowers = async (userId: string, pagination: PaginationParams) => {
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select("followers");
+  if (!user) return null;
+
+  const total = user.followers.length;
+  await user.populate({
+    path: "followers",
+    select: "name profilePic",
+    options: { skip: pagination.skip, limit: pagination.limit },
+  });
+
+  return paginatedResponse(user.followers, total, pagination);
 };
 
-export const getFollowing = async (userId: string) => {
-  const user = await User.findOne({ _id: userId, isDeleted: false }).populate(
-    "following",
-    "name profilePic"
-  );
-  return user?.following || [];
+export const getFollowing = async (userId: string, pagination: PaginationParams) => {
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select("following");
+  if (!user) return null;
+
+  const total = user.following.length;
+  await user.populate({
+    path: "following",
+    select: "name profilePic",
+    options: { skip: pagination.skip, limit: pagination.limit },
+  });
+
+  return paginatedResponse(user.following, total, pagination);
 };
 
 export const blockUser = async (adminId: string, targetUserId: string) => {

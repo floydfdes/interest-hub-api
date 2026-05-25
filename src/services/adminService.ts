@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import Comment from "../models/Comment";
 import Post, { Visibility } from "../models/Post";
 import User from "../models/User";
+import { paginatedResponse, PaginationParams } from "../utils/pagination";
 
 const safeUserFields = "-password -otp -otpExpires -twoFASecret -resetToken -resetTokenExpiry";
 
@@ -19,15 +20,11 @@ export interface AdminUserInput {
 
 export type AdminUserUpdate = Partial<AdminUserInput>;
 
-interface Pagination {
-  page: number;
-  limit: number;
-}
-
-interface AdminPostFilters extends Pagination {
+interface AdminPostFilters {
   query?: string;
   authorId?: string;
   visibility?: Visibility;
+  pagination: PaginationParams;
 }
 
 const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -75,7 +72,7 @@ export const getAdminDashboardService = async () => {
 
 export const getAdminUsersService = async (
   query: string | undefined,
-  { page, limit }: Pagination
+  pagination: PaginationParams
 ) => {
   const filter = query
     ? {
@@ -90,12 +87,12 @@ export const getAdminUsersService = async (
     User.find(filter)
       .select(safeUserFields)
       .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit),
+      .skip(pagination.skip)
+      .limit(pagination.limit),
     User.countDocuments(filter),
   ]);
 
-  return { users, total, page, limit };
+  return paginatedResponse(users, total, pagination);
 };
 
 export const getAdminUserByIdService = async (id: string) => {
@@ -278,8 +275,7 @@ export const getAdminPostsService = async ({
   query,
   authorId,
   visibility,
-  page,
-  limit,
+  pagination,
 }: AdminPostFilters) => {
   const filter: Record<string, unknown> = {};
   if (query) {
@@ -293,12 +289,12 @@ export const getAdminPostsService = async ({
     Post.find(filter)
       .populate("author", "name email profilePic")
       .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit),
+      .skip(pagination.skip)
+      .limit(pagination.limit),
     Post.countDocuments(filter),
   ]);
 
-  return { posts, total, page, limit };
+  return paginatedResponse(posts, total, pagination);
 };
 
 export const getAdminPostByIdService = async (id: string) =>

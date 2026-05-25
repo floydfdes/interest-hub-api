@@ -4,6 +4,7 @@ import Post, { IPost, Visibility } from "../models/Post";
 import User from "../models/User";
 
 import { uploadImageToCloudinary } from "../utils/uploadImage";
+import { paginatedResponse, PaginationParams } from "../utils/pagination";
 
 type CreatePostData = Pick<IPost, "title" | "content" | "category" | "author"> & {
   image: string;
@@ -48,8 +49,18 @@ export const createPostService = async (postData: CreatePostData) => {
   });
 };
 
-export const getAllPostsService = async () => {
-  return Post.find({ visibility: "public" }).populate("author", "name profilePic");
+export const getAllPostsService = async (pagination: PaginationParams) => {
+  const filter = { visibility: "public" as Visibility };
+  const [posts, total] = await Promise.all([
+    Post.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(pagination.skip)
+      .limit(pagination.limit)
+      .populate("author", "name profilePic"),
+    Post.countDocuments(filter),
+  ]);
+
+  return paginatedResponse(posts, total, pagination);
 };
 
 export const searchPostsService = async (query: string) => {
@@ -102,17 +113,24 @@ export const advancedSearchPostsService = async ({
   return Post.find(filters).populate("author", "name profilePic");
 };
 
-export const getFollowingFeedService = async (userId: string, limit: number) => {
+export const getFollowingFeedService = async (userId: string, pagination: PaginationParams) => {
   const user = await User.findOne({ _id: userId, isDeleted: false }).select("following");
   if (!user) return null;
 
-  return Post.find({
+  const filter = {
     author: { $in: user.following },
-    visibility: "public",
-  })
-    .sort({ createdAt: -1 })
-    .limit(limit)
-    .populate("author", "name profilePic");
+    visibility: "public" as Visibility,
+  };
+  const [posts, total] = await Promise.all([
+    Post.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(pagination.skip)
+      .limit(pagination.limit)
+      .populate("author", "name profilePic"),
+    Post.countDocuments(filter),
+  ]);
+
+  return paginatedResponse(posts, total, pagination);
 };
 
 const periodInMilliseconds: Record<Exclude<TrendingPeriod, "all">, number> = {
@@ -325,6 +343,20 @@ export const likePostService = async (postId: string, userId: string) => {
     { new: true }
   );
   return post;
+};
+
+export const getPostLikesService = async (postId: string, pagination: PaginationParams) => {
+  const post = await Post.findOne({ _id: postId, visibility: "public" }).select("likes");
+  if (!post) return null;
+
+  const total = post.likes.length;
+  await post.populate({
+    path: "likes",
+    select: "name profilePic",
+    options: { skip: pagination.skip, limit: pagination.limit },
+  });
+
+  return paginatedResponse(post.likes, total, pagination);
 };
 
 export const unlikePostService = async (postId: string, userId: string) => {

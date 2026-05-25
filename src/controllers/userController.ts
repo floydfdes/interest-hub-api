@@ -16,6 +16,7 @@ import {
 import { AuthRequest } from "../middleware/authMiddleware";
 import User from "../models/User";
 import { logError } from "../utils/logger";
+import { getPagination } from "../utils/pagination";
 
 const getLimit = (value: unknown, defaultLimit = 10) => {
   const parsed = typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;
@@ -106,7 +107,11 @@ export const unfollow = async (req: AuthRequest, res: Response) => {
 export const followers = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const list = await getFollowers(id);
+    const list = await getFollowers(id, getPagination(req.query));
+    if (!list) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
     res.status(200).json(list);
   } catch (error) {
     logError("Failed to fetch followers", error, { profileId: req.params.id });
@@ -117,7 +122,11 @@ export const followers = async (req: Request, res: Response) => {
 export const following = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const list = await getFollowing(id);
+    const list = await getFollowing(id, getPagination(req.query));
+    if (!list) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
     res.status(200).json(list);
   } catch (error) {
     logError("Failed to fetch following", error, { profileId: req.params.id });
