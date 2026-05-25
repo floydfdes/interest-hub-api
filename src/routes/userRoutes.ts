@@ -1,4 +1,5 @@
 import {
+  activities,
   block,
   deleteAccount,
   follow,
@@ -19,6 +20,7 @@ import authMiddleware from "../middleware/authMiddleware";
 const router = express.Router();
 
 router.get("/me", authMiddleware, getMe);
+router.get("/activities", authMiddleware, activities);
 router.get("/suggested", authMiddleware, suggested);
 router.get("/profile/:id", getProfile);
 router.patch("/update", authMiddleware, updateProfile);

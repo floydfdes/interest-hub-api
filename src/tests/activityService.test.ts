@@ -22,7 +22,11 @@ jest.mock("../utils/logger", () => ({
   logError: mockLogError,
 }));
 
-import { getAdminActivitiesService, recordActivity } from "../services/activityService";
+import {
+  getAdminActivitiesService,
+  getUserActivitiesService,
+  recordActivity,
+} from "../services/activityService";
 
 describe("activity service", () => {
   beforeEach(() => {
@@ -72,5 +76,18 @@ describe("activity service", () => {
     });
     expect(mockActivitySkip).toHaveBeenCalledWith(10);
     expect(result.pagination.total).toBe(22);
+  });
+
+  it("scopes a user's activity history to their own actor ID", async () => {
+    const userId = "507f1f77bcf86cd799439011";
+
+    await getUserActivitiesService(userId, "post_created", { page: 1, limit: 20, skip: 0 });
+
+    expect(mockActivityFind).toHaveBeenCalledWith({
+      actor: userId,
+      type: "post_created",
+    });
+    expect(mockPopulateActor).toHaveBeenCalledWith("actor", "name profilePic");
+    expect(mockPopulateTarget).toHaveBeenCalledWith("targetUser", "name profilePic");
   });
 });

@@ -70,3 +70,27 @@ export const getAdminActivitiesService = async (
 
   return paginatedResponse(activities, total, pagination);
 };
+
+export const getUserActivitiesService = async (
+  userId: string,
+  type: UserActivityType | undefined,
+  pagination: PaginationParams
+) => {
+  const query = {
+    actor: userId,
+    ...(type && { type }),
+  };
+
+  const [activities, total] = await Promise.all([
+    UserActivity.find(query)
+      .populate("actor", "name profilePic")
+      .populate("targetUser", "name profilePic")
+      .populate("post", "title image")
+      .sort({ createdAt: -1 })
+      .skip(pagination.skip)
+      .limit(pagination.limit),
+    UserActivity.countDocuments(query),
+  ]);
+
+  return paginatedResponse(activities, total, pagination);
+};
