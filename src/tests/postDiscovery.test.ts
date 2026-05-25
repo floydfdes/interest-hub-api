@@ -9,6 +9,8 @@ const mockPostCountDocuments = jest.fn().mockResolvedValue(24);
 const mockPostAggregate = jest.fn().mockResolvedValue([]);
 const mockPostSelect = jest.fn();
 const mockPostFindOne = jest.fn(() => ({ select: mockPostSelect }));
+const mockPostFindOneAndUpdate = jest.fn();
+const mockPostFindById = jest.fn();
 
 const mockUserSelect = jest.fn();
 const mockUserPopulate = jest.fn();
@@ -23,6 +25,8 @@ jest.mock("../models/Post", () => ({
     countDocuments: mockPostCountDocuments,
     find: mockPostFind,
     findOne: mockPostFindOne,
+    findOneAndUpdate: mockPostFindOneAndUpdate,
+    findById: mockPostFindById,
   },
 }));
 
@@ -49,6 +53,7 @@ import {
   getBookmarkedPostsService,
   getFollowingFeedService,
   getPostLikesService,
+  likePostService,
   getRecommendedPostsService,
   getTrendingPostsService,
 } from "../services/postService";
@@ -165,6 +170,16 @@ describe("post discovery services", () => {
       options: { skip: 0, limit: 10 },
     });
     expect(result?.pagination.total).toBe(1);
+  });
+
+  it("reports a newly added like only once for activity tracking", async () => {
+    const post = { _id: postId };
+    mockPostFindOneAndUpdate.mockResolvedValueOnce(post);
+    expect(await likePostService(postId.toString(), userId)).toEqual({ post, didLike: true });
+
+    mockPostFindOneAndUpdate.mockResolvedValueOnce(null);
+    mockPostFindById.mockResolvedValueOnce(post);
+    expect(await likePostService(postId.toString(), userId)).toEqual({ post, didLike: false });
   });
 });
 

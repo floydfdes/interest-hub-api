@@ -10,6 +10,7 @@ import {
 
 import { AuthRequest } from "../middleware/authMiddleware";
 import logger from "../utils/logger";
+import { getActivityRequestContext, recordActivity } from "../services/activityService";
 
 export const registerUser = async (req: Request, res: Response): Promise<void> => {
   const { name, email, password } = req.body;
@@ -37,6 +38,11 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
 
   try {
     const { token, refreshToken, user } = await loginUserService(email, password);
+    await recordActivity({
+      actorId: user.id.toString(),
+      type: "login",
+      ...getActivityRequestContext(req),
+    });
 
     res
       .cookie("refreshToken", refreshToken, {

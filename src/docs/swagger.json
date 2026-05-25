@@ -1692,6 +1692,38 @@
                 }
             }
         },
+        "/api/admin/activities": {
+            "get": {
+                "tags": ["Admin"],
+                "summary": "List user activity events for moderation and analytics",
+                "parameters": [
+                    { "name": "actorId", "in": "query", "schema": { "type": "string" } },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "login",
+                                "post_created",
+                                "user_followed",
+                                "post_liked",
+                                "report_submitted",
+                                "user_blocked",
+                                "user_unblocked"
+                            ]
+                        }
+                    },
+                    { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+                    { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } }
+                ],
+                "responses": {
+                    "200": { "description": "Paginated activity events returned as items and pagination metadata" },
+                    "400": { "description": "Invalid activity type or actor ID" },
+                    "403": { "description": "Administrator access required" }
+                }
+            }
+        },
         "/api/admin/users": {
             "get": {
                 "tags": ["Admin"],

@@ -4,6 +4,7 @@ import connectDB from "../config/database";
 import app from "../index";
 import Post from "../models/Post";
 import User from "../models/User";
+import UserActivity from "../models/UserActivity";
 jest.setTimeout(20000);
 const API = "/api/posts";
 const image =
@@ -35,6 +36,10 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  const user = await User.findOne({ email: testUser.email }).select("_id");
+  if (user) {
+    await UserActivity.deleteMany({ actor: user._id });
+  }
   await User.deleteOne({ email: testUser.email });
   await Post.deleteMany({ title: /Test Post/i });
   await mongoose.disconnect();

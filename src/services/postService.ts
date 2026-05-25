@@ -337,12 +337,15 @@ export const deletePostService = async (id: string, userId: string) => {
 };
 
 export const likePostService = async (postId: string, userId: string) => {
-  const post = await Post.findByIdAndUpdate(
-    postId,
+  const post = await Post.findOneAndUpdate(
+    { _id: postId, likes: { $ne: userId } },
     { $addToSet: { likes: userId } },
     { new: true }
   );
-  return post;
+  if (post) return { post, didLike: true };
+
+  const existingPost = await Post.findById(postId);
+  return existingPost ? { post: existingPost, didLike: false } : null;
 };
 
 export const getPostLikesService = async (postId: string, pagination: PaginationParams) => {

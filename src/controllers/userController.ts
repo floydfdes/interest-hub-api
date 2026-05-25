@@ -17,6 +17,7 @@ import { AuthRequest } from "../middleware/authMiddleware";
 import User from "../models/User";
 import { logError } from "../utils/logger";
 import { getPagination } from "../utils/pagination";
+import { getActivityRequestContext, recordActivity } from "../services/activityService";
 
 const getLimit = (value: unknown, defaultLimit = 10) => {
   const parsed = typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;
@@ -79,7 +80,15 @@ export const deleteAccount = async (req: AuthRequest, res: Response) => {
 export const follow = async (req: AuthRequest, res: Response) => {
   try {
     const { targetUserId } = req.params;
-    await followUser(req.userId!, targetUserId);
+    const didFollow = await followUser(req.userId!, targetUserId);
+    if (didFollow) {
+      await recordActivity({
+        actorId: req.userId!,
+        type: "user_followed",
+        targetUserId,
+        ...getActivityRequestContext(req),
+      });
+    }
     res.status(200).json({ message: "Followed successfully" });
   } catch (error) {
     logError("Failed to follow user", error, {
@@ -153,6 +162,12 @@ export const block = async (req: AuthRequest, res: Response) => {
   try {
     const { targetUserId } = req.params;
     await blockUser(req.userId!, targetUserId);
+    await recordActivity({
+      actorId: req.userId!,
+      type: "user_blocked",
+      targetUserId,
+      ...getActivityRequestContext(req),
+    });
     res.status(200).json({ message: "User blocked" });
   } catch (error) {
     res.status(error instanceof Error && error.message === "Unauthorized" ? 403 : 404).json({
@@ -165,6 +180,12 @@ export const unblock = async (req: AuthRequest, res: Response) => {
   try {
     const { targetUserId } = req.params;
     await unblockUser(req.userId!, targetUserId);
+    await recordActivity({
+      actorId: req.userId!,
+      type: "user_unblocked",
+      targetUserId,
+      ...getActivityRequestContext(req),
+    });
     res.status(200).json({ message: "User unblocked" });
   } catch (error) {
     res.status(error instanceof Error && error.message === "Unauthorized" ? 403 : 404).json({

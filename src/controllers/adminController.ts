@@ -1,4 +1,5 @@
 import { Response } from "express";
+import mongoose from "mongoose";
 import { AuthRequest } from "../middleware/authMiddleware";
 import {
   bulkDeleteAdminCommentsService,
@@ -20,6 +21,12 @@ import {
 import { Visibility } from "../models/Post";
 import { logError } from "../utils/logger";
 import { getPagination } from "../utils/pagination";
+import {
+  getActivityRequestContext,
+  getAdminActivitiesService,
+  recordActivity,
+} from "../services/activityService";
+import { USER_ACTIVITY_TYPES, UserActivityType } from "../models/UserActivity";
 
 const errorResponse = (res: Response, error: unknown, operation: string): void => {
   const message = error instanceof Error ? error.message : operation;
@@ -45,6 +52,33 @@ export const getAdminDashboard = async (_req: AuthRequest, res: Response) => {
     res.status(200).json(await getAdminDashboardService());
   } catch (error) {
     errorResponse(res, error, "Failed to fetch admin dashboard");
+  }
+};
+
+export const getAdminActivities = async (req: AuthRequest, res: Response) => {
+  const rawType = typeof req.query.type === "string" ? req.query.type : undefined;
+  const actorId = typeof req.query.actorId === "string" ? req.query.actorId : undefined;
+  if (rawType && !USER_ACTIVITY_TYPES.includes(rawType as UserActivityType)) {
+    res.status(400).json({ message: "Invalid activity type" });
+    return;
+  }
+  if (actorId && !mongoose.isValidObjectId(actorId)) {
+    res.status(400).json({ message: "Invalid actor ID" });
+    return;
+  }
+
+  try {
+    res.status(200).json(
+      await getAdminActivitiesService(
+        {
+          actorId,
+          type: rawType as UserActivityType | undefined,
+        },
+        getPagination(req.query, 20, 100)
+      )
+    );
+  } catch (error) {
+    errorResponse(res, error, "Failed to fetch activities");
   }
 };
 
@@ -120,6 +154,12 @@ export const blockAdminUser = async (req: AuthRequest, res: Response) => {
       res.status(404).json({ message: "User not found" });
       return;
     }
+    await recordActivity({
+      actorId: req.userId!,
+      type: "user_blocked",
+      targetUserId: req.params.id,
+      ...getActivityRequestContext(req),
+    });
     res.status(200).json(user);
   } catch (error) {
     errorResponse(res, error, "Failed to block user");
@@ -133,6 +173,12 @@ export const unblockAdminUser = async (req: AuthRequest, res: Response) => {
       res.status(404).json({ message: "User not found" });
       return;
     }
+    await recordActivity({
+      actorId: req.userId!,
+      type: "user_unblocked",
+      targetUserId: req.params.id,
+      ...getActivityRequestContext(req),
+    });
     res.status(200).json(user);
   } catch (error) {
     errorResponse(res, error, "Failed to unblock user");

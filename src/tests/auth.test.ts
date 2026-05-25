@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import connectDB from "../config/database";
 import app from "../index";
 import User from "../models/User";
+import UserActivity from "../models/UserActivity";
 
 const API = "/api/auth";
 
@@ -22,6 +23,10 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  const user = await User.findOne({ email: testUser.email }).select("_id");
+  if (user) {
+    await UserActivity.deleteMany({ actor: user._id });
+  }
   await User.deleteOne({ email: testUser.email });
   await mongoose.disconnect();
 });

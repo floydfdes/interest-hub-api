@@ -11,6 +11,7 @@ import {
   deleteAdminReply,
   deleteAdminUser,
   getAdminDashboard,
+  getAdminActivities,
   getAdminPostById,
   getAdminPosts,
   getAdminUserById,
@@ -33,6 +34,7 @@ router.use(authMiddleware, adminMiddleware);
 
 router.get("/access", checkAdminAccess);
 router.get("/dashboard", getAdminDashboard);
+router.get("/activities", getAdminActivities);
 
 router.get("/users", getAdminUsers);
 router.post("/users/bulk-delete", bulkDeleteAdminValidation, validate, bulkDeleteAdminUsers);

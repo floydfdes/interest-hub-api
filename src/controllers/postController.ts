@@ -23,6 +23,7 @@ import mongoose from "mongoose";
 import { AuthRequest } from "../middleware/authMiddleware";
 import { logError } from "../utils/logger";
 import { getPagination } from "../utils/pagination";
+import { getActivityRequestContext, recordActivity } from "../services/activityService";
 
 const getLimit = (value: unknown, defaultLimit = 20) => {
   const parsed = typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;
@@ -46,6 +47,12 @@ export const createPost = async (req: AuthRequest, res: Response) => {
       tags,
       visibility,
       author: new mongoose.Types.ObjectId(req.userId),
+    });
+    await recordActivity({
+      actorId: req.userId,
+      type: "post_created",
+      postId: post._id.toString(),
+      ...getActivityRequestContext(req),
     });
 
     res.status(201).json(post);
@@ -277,13 +284,22 @@ export const likePost = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const userId = req.userId;
 
-    const post = await likePostService(id, userId!);
-    if (!post) {
+    const result = await likePostService(id, userId!);
+    if (!result) {
       res.status(404).json({ message: "Post not found" });
       return;
     }
 
-    res.status(200).json(post);
+    if (result.didLike) {
+      await recordActivity({
+        actorId: userId!,
+        type: "post_liked",
+        postId: id,
+        ...getActivityRequestContext(req),
+      });
+    }
+
+    res.status(200).json(result.post);
   } catch (error) {
     logError("Failed to like post", error, { postId: req.params.id, userId: req.userId });
     res.status(500).json({ message: "Failed to like post" });

@@ -74,7 +74,7 @@ export const followUser = async (userId: string, targetUserId: string) => {
     await user.save();
   }
 
-  return true;
+  return !isAlreadyFollowing;
 };
 
 export const unfollowUser = async (userId: string, targetUserId: string) => {
