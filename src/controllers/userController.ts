@@ -17,7 +17,12 @@ import { AuthRequest } from "../middleware/authMiddleware";
 import User from "../models/User";
 import { logError } from "../utils/logger";
 import { getPagination } from "../utils/pagination";
-import { getActivityRequestContext, recordActivity } from "../services/activityService";
+import {
+  getActivityRequestContext,
+  getUserActivitiesService,
+  recordActivity,
+} from "../services/activityService";
+import { USER_ACTIVITY_TYPES, UserActivityType } from "../models/UserActivity";
 
 const getLimit = (value: unknown, defaultLimit = 10) => {
   const parsed = typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;
@@ -40,6 +45,26 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
   }
 
   res.status(200).json({ user });
+};
+
+export const activities = async (req: AuthRequest, res: Response): Promise<void> => {
+  const rawType = typeof req.query.type === "string" ? req.query.type : undefined;
+  if (rawType && !USER_ACTIVITY_TYPES.includes(rawType as UserActivityType)) {
+    res.status(400).json({ message: "Invalid activity type" });
+    return;
+  }
+
+  try {
+    const result = await getUserActivitiesService(
+      req.userId!,
+      rawType as UserActivityType | undefined,
+      getPagination(req.query)
+    );
+    res.status(200).json(result);
+  } catch (error) {
+    logError("Failed to fetch user activities", error, { userId: req.userId });
+    res.status(500).json({ message: "Failed to fetch activities" });
+  }
 };
 
 export const getProfile = async (req: Request, res: Response) => {
