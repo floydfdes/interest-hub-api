@@ -3,6 +3,7 @@ import {
   blockUser,
   deleteUserAccount,
   followUser,
+  getBlockedUsers,
   getFollowers,
   getFollowing,
   getSuggestedUsers,
@@ -36,7 +37,7 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
   }
 
   const user = await User.findOne({ _id: req.userId, isDeleted: false }).select(
-    "name email role profilePic bio interests followers following createdAt updatedAt"
+    "name email role profilePic bio interests followers following blockedUsers createdAt updatedAt"
   );
 
   if (!user) {
@@ -45,6 +46,14 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
   }
 
   res.status(200).json({ user });
+};
+
+const userActionErrorStatus = (error: unknown): number => {
+  const message = error instanceof Error ? error.message : "";
+  if (message === "User not found") return 404;
+  if (message.startsWith("Cannot ")) return 400;
+  if (message === "You cannot follow this user") return 403;
+  return 500;
 };
 
 export const activities = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -120,7 +129,9 @@ export const follow = async (req: AuthRequest, res: Response) => {
       userId: req.userId,
       targetUserId: req.params.targetUserId,
     });
-    res.status(500).json({ message: "Failed to follow user" });
+    res.status(userActionErrorStatus(error)).json({
+      message: error instanceof Error ? error.message : "Failed to follow user",
+    });
   }
 };
 
@@ -168,6 +179,20 @@ export const following = async (req: Request, res: Response) => {
   }
 };
 
+export const blocked = async (req: AuthRequest, res: Response) => {
+  try {
+    const list = await getBlockedUsers(req.userId!, getPagination(req.query));
+    if (!list) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+    res.status(200).json(list);
+  } catch (error) {
+    logError("Failed to fetch blocked users", error, { userId: req.userId });
+    res.status(500).json({ message: "Failed to fetch blocked users" });
+  }
+};
+
 export const suggested = async (req: AuthRequest, res: Response) => {
   try {
     const users = await getSuggestedUsers(req.userId!, getLimit(req.query.limit));
@@ -186,16 +211,18 @@ export const suggested = async (req: AuthRequest, res: Response) => {
 export const block = async (req: AuthRequest, res: Response) => {
   try {
     const { targetUserId } = req.params;
-    await blockUser(req.userId!, targetUserId);
-    await recordActivity({
-      actorId: req.userId!,
-      type: "user_blocked",
-      targetUserId,
-      ...getActivityRequestContext(req),
-    });
+    const didBlock = await blockUser(req.userId!, targetUserId);
+    if (didBlock) {
+      await recordActivity({
+        actorId: req.userId!,
+        type: "user_blocked",
+        targetUserId,
+        ...getActivityRequestContext(req),
+      });
+    }
     res.status(200).json({ message: "User blocked" });
   } catch (error) {
-    res.status(error instanceof Error && error.message === "Unauthorized" ? 403 : 404).json({
+    res.status(userActionErrorStatus(error)).json({
       message: error instanceof Error ? error.message : "Failed to block user",
     });
   }
@@ -204,16 +231,18 @@ export const block = async (req: AuthRequest, res: Response) => {
 export const unblock = async (req: AuthRequest, res: Response) => {
   try {
     const { targetUserId } = req.params;
-    await unblockUser(req.userId!, targetUserId);
-    await recordActivity({
-      actorId: req.userId!,
-      type: "user_unblocked",
-      targetUserId,
-      ...getActivityRequestContext(req),
-    });
+    const didUnblock = await unblockUser(req.userId!, targetUserId);
+    if (didUnblock) {
+      await recordActivity({
+        actorId: req.userId!,
+        type: "user_unblocked",
+        targetUserId,
+        ...getActivityRequestContext(req),
+      });
+    }
     res.status(200).json({ message: "User unblocked" });
   } catch (error) {
-    res.status(error instanceof Error && error.message === "Unauthorized" ? 403 : 404).json({
+    res.status(userActionErrorStatus(error)).json({
       message: error instanceof Error ? error.message : "Failed to unblock user",
     });
   }

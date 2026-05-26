@@ -1,0 +1,110 @@
+import mongoose from "mongoose";
+
+const mockUserFindOne = jest.fn();
+
+jest.mock("../models/User", () => ({
+  __esModule: true,
+  default: {
+    findOne: mockUserFindOne,
+  },
+}));
+
+jest.mock("../utils/uploadImage", () => ({
+  uploadImageToCloudinary: jest.fn(),
+}));
+
+import { blockUser, followUser, getBlockedUsers, unblockUser } from "../services/userService";
+
+const userId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439011");
+const targetId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439012");
+
+const createUser = (id: mongoose.Types.ObjectId) => ({
+  _id: id,
+  followers: [] as mongoose.Types.ObjectId[],
+  following: [] as mongoose.Types.ObjectId[],
+  blockedUsers: [] as mongoose.Types.ObjectId[],
+  save: jest.fn().mockResolvedValue(undefined),
+});
+
+describe("personal user blocking", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("blocks another user and removes follow relationships in both directions", async () => {
+    const user = createUser(userId);
+    const target = createUser(targetId);
+    user.following = [targetId];
+    user.followers = [targetId];
+    target.following = [userId];
+    target.followers = [userId];
+    mockUserFindOne.mockResolvedValueOnce(user).mockResolvedValueOnce(target);
+
+    await expect(blockUser(userId.toString(), targetId.toString())).resolves.toBe(true);
+
+    expect(user.blockedUsers).toEqual([targetId]);
+    expect(user.following).toEqual([]);
+    expect(user.followers).toEqual([]);
+    expect(target.following).toEqual([]);
+    expect(target.followers).toEqual([]);
+    expect(user.save).toHaveBeenCalled();
+    expect(target.save).toHaveBeenCalled();
+  });
+
+  it("does not allow a user to block themselves", async () => {
+    await expect(blockUser(userId.toString(), userId.toString())).rejects.toThrow(
+      "Cannot block yourself"
+    );
+    expect(mockUserFindOne).not.toHaveBeenCalled();
+  });
+
+  it("does not allow following when either user has blocked the other", async () => {
+    const user = createUser(userId);
+    const target = createUser(targetId);
+    target.blockedUsers = [userId];
+    mockUserFindOne.mockResolvedValueOnce(user).mockResolvedValueOnce(target);
+
+    await expect(followUser(userId.toString(), targetId.toString())).rejects.toThrow(
+      "You cannot follow this user"
+    );
+  });
+
+  it("rejects following yourself even when the ID casing differs", async () => {
+    const user = createUser(userId);
+    const target = createUser(userId);
+    mockUserFindOne.mockResolvedValueOnce(user).mockResolvedValueOnce(target);
+
+    await expect(followUser(userId.toString(), userId.toString().toUpperCase())).rejects.toThrow(
+      "Cannot follow yourself"
+    );
+  });
+
+  it("unblocks a user without restoring a follow relationship", async () => {
+    const user = createUser(userId);
+    const target = createUser(targetId);
+    user.blockedUsers = [targetId];
+    mockUserFindOne.mockResolvedValueOnce(user).mockResolvedValueOnce(target);
+
+    await expect(unblockUser(userId.toString(), targetId.toString())).resolves.toBe(true);
+
+    expect(user.blockedUsers).toEqual([]);
+    expect(user.following).toEqual([]);
+    expect(target.followers).toEqual([]);
+  });
+
+  it("returns the authenticated user's paginated block list", async () => {
+    const populate = jest.fn().mockResolvedValue(undefined);
+    const select = jest.fn().mockResolvedValue({ blockedUsers: [targetId], populate });
+    mockUserFindOne.mockReturnValueOnce({ select });
+
+    const result = await getBlockedUsers(userId.toString(), { page: 1, limit: 20, skip: 0 });
+
+    expect(select).toHaveBeenCalledWith("blockedUsers");
+    expect(populate).toHaveBeenCalledWith({
+      path: "blockedUsers",
+      select: "name profilePic",
+      options: { skip: 0, limit: 20 },
+    });
+    expect(result?.pagination.total).toBe(1);
+  });
+});

@@ -200,6 +200,7 @@ export const deleteAdminUserService = async (id: string, actorId: string) => {
         $pull: {
           followers: user._id,
           following: user._id,
+          blockedUsers: user._id,
           savedPosts: { $in: postIds },
         },
       }
@@ -253,6 +254,7 @@ export const bulkDeleteAdminUsersService = async (ids: string[], actorId: string
         $pull: {
           followers: { $in: userIds },
           following: { $in: userIds },
+          blockedUsers: { $in: userIds },
           savedPosts: { $in: postIds },
         },
       }

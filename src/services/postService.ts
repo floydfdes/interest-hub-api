@@ -114,11 +114,13 @@ export const advancedSearchPostsService = async ({
 };
 
 export const getFollowingFeedService = async (userId: string, pagination: PaginationParams) => {
-  const user = await User.findOne({ _id: userId, isDeleted: false }).select("following");
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select(
+    "following blockedUsers"
+  );
   if (!user) return null;
 
   const filter = {
-    author: { $in: user.following },
+    author: { $in: user.following, $nin: user.blockedUsers ?? [] },
     visibility: "public" as Visibility,
   };
   const [posts, total] = await Promise.all([
@@ -189,16 +191,26 @@ export const getTrendingPostsService = async (period: TrendingPeriod, limit: num
 };
 
 export const getRecommendedPostsService = async (userId: string, limit: number) => {
-  const user = await User.findOne({ _id: userId, isDeleted: false }).select("following interests");
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select(
+    "following blockedUsers interests"
+  );
   if (!user) return null;
 
   const interests = user.interests.map((interest) => interest.trim().toLowerCase()).filter(Boolean);
+  const usersWhoBlockedViewer = await User.find({
+    blockedUsers: user._id,
+    isDeleted: false,
+  }).select("_id");
+  const excludedAuthors = [
+    ...(user.blockedUsers ?? []),
+    ...usersWhoBlockedViewer.map((blockedBy) => blockedBy._id),
+  ];
 
   return Post.aggregate([
     {
       $match: {
         visibility: "public",
-        author: { $ne: user._id },
+        author: { $ne: user._id, $nin: excludedAuthors },
       },
     },
     {

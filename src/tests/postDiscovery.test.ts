@@ -13,8 +13,10 @@ const mockPostFindOneAndUpdate = jest.fn();
 const mockPostFindById = jest.fn();
 
 const mockUserSelect = jest.fn();
+const mockBlockedBySelect = jest.fn().mockResolvedValue([]);
 const mockUserPopulate = jest.fn();
 const mockUserFindOne = jest.fn();
+const mockUserFind = jest.fn(() => ({ select: mockBlockedBySelect }));
 const mockUserFindOneAndUpdate = jest.fn();
 const mockUserAggregate = jest.fn().mockResolvedValue([]);
 
@@ -34,6 +36,7 @@ jest.mock("../models/User", () => ({
   __esModule: true,
   default: {
     aggregate: mockUserAggregate,
+    find: mockUserFind,
     findOne: mockUserFindOne,
     findOneAndUpdate: mockUserFindOneAndUpdate,
   },
@@ -64,13 +67,16 @@ describe("post discovery services", () => {
   const userId = "507f1f77bcf86cd799439011";
   const followedId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439012");
   const postId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439013");
+  const blockedId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439014");
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockBlockedBySelect.mockResolvedValue([]);
     mockUserFindOne.mockReturnValue({ select: mockUserSelect });
     mockUserSelect.mockResolvedValue({
       _id: new mongoose.Types.ObjectId(userId),
       following: [followedId],
+      blockedUsers: [blockedId],
       interests: ["Travel", "Photography"],
     });
   });
@@ -79,7 +85,7 @@ describe("post discovery services", () => {
     const result = await getFollowingFeedService(userId, { page: 2, limit: 20, skip: 20 });
 
     expect(mockPostFind).toHaveBeenCalledWith({
-      author: { $in: [followedId] },
+      author: { $in: [followedId], $nin: [blockedId] },
       visibility: "public",
     });
     expect(mockPostSort).toHaveBeenCalledWith({ createdAt: -1 });
@@ -115,10 +121,25 @@ describe("post discovery services", () => {
     expect(pipeline[0]).toEqual({
       $match: {
         visibility: "public",
-        author: { $ne: new mongoose.Types.ObjectId(userId) },
+        author: { $ne: new mongoose.Types.ObjectId(userId), $nin: [blockedId] },
       },
     });
     expect(pipeline).toContainEqual({ $limit: 15 });
+  });
+
+  it("does not recommend posts from a user who blocked the viewer", async () => {
+    const blockingId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439015");
+    mockBlockedBySelect.mockResolvedValueOnce([{ _id: blockingId }]);
+
+    await getRecommendedPostsService(userId, 15);
+
+    const pipeline = mockPostAggregate.mock.calls[0][0];
+    expect(pipeline[0]).toEqual({
+      $match: {
+        visibility: "public",
+        author: { $ne: new mongoose.Types.ObjectId(userId), $nin: [blockedId, blockingId] },
+      },
+    });
   });
 
   it("bookmarks only an existing public post", async () => {
@@ -191,6 +212,7 @@ describe("suggested users", () => {
     mockUserSelect.mockResolvedValue({
       _id: userId,
       following: [followedId],
+      blockedUsers: [],
       interests: ["Travel"],
     });
 
@@ -202,6 +224,7 @@ describe("suggested users", () => {
         _id: { $nin: [userId, followedId] },
         isDeleted: false,
         isBlocked: false,
+        blockedUsers: { $nin: [userId] },
       },
     });
     expect(pipeline).toContainEqual({

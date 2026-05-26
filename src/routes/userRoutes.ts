@@ -1,6 +1,7 @@
 import {
   activities,
   block,
+  blocked,
   deleteAccount,
   follow,
   followers,
@@ -22,6 +23,7 @@ const router = express.Router();
 router.get("/me", authMiddleware, getMe);
 router.get("/activities", authMiddleware, activities);
 router.get("/suggested", authMiddleware, suggested);
+router.get("/blocked", authMiddleware, blocked);
 router.get("/profile/:id", getProfile);
 router.patch("/update", authMiddleware, updateProfile);
 router.delete("/delete", authMiddleware, deleteAccount);

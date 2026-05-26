@@ -110,6 +110,12 @@ describe("admin destructive actions", () => {
       })
     );
     expect(mockUserFindByIdAndDelete).toHaveBeenCalledWith(targetObjectId);
+    expect(mockUserUpdateMany).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        $pull: expect.objectContaining({ blockedUsers: targetObjectId }),
+      })
+    );
   });
 
   it("prevents an administrator from deleting their own account", async () => {

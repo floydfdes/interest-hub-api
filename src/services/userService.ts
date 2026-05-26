@@ -59,6 +59,13 @@ export const followUser = async (userId: string, targetUserId: string) => {
   const target = await User.findOne({ _id: targetUserId, isDeleted: false });
 
   if (!user || !target) throw new Error("User not found");
+  if (user._id.equals(target._id)) throw new Error("Cannot follow yourself");
+  if (
+    (user.blockedUsers ?? []).some((id) => id.equals(target._id)) ||
+    (target.blockedUsers ?? []).some((id) => id.equals(user._id))
+  ) {
+    throw new Error("You cannot follow this user");
+  }
 
   const isAlreadyFollowing = target.followers.some((id) => id.equals(user._id));
 
@@ -121,30 +128,58 @@ export const getFollowing = async (userId: string, pagination: PaginationParams)
   return paginatedResponse(user.following, total, pagination);
 };
 
-export const blockUser = async (adminId: string, targetUserId: string) => {
-  const admin = await User.findOne({ _id: adminId, isDeleted: false });
-  if (admin?.role !== "admin") throw new Error("Unauthorized");
+export const getBlockedUsers = async (userId: string, pagination: PaginationParams) => {
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select("blockedUsers");
+  if (!user) return null;
 
-  const user = await User.findOne({ _id: targetUserId, isDeleted: false });
-  if (!user) throw new Error("User not found");
+  const total = user.blockedUsers.length;
+  await user.populate({
+    path: "blockedUsers",
+    select: "name profilePic",
+    options: { skip: pagination.skip, limit: pagination.limit },
+  });
 
-  user.isBlocked = true;
-  await user.save();
-
-  return true;
+  return paginatedResponse(user.blockedUsers, total, pagination);
 };
 
-export const unblockUser = async (adminId: string, targetUserId: string) => {
-  const admin = await User.findOne({ _id: adminId, isDeleted: false });
-  if (admin?.role !== "admin") throw new Error("Unauthorized");
+export const blockUser = async (userId: string, targetUserId: string) => {
+  if (userId === targetUserId) throw new Error("Cannot block yourself");
 
-  const user = await User.findOne({ _id: targetUserId, isDeleted: false });
-  if (!user) throw new Error("User not found");
+  const user = await User.findOne({ _id: userId, isDeleted: false });
+  const target = await User.findOne({ _id: targetUserId, isDeleted: false });
+  if (!user || !target) throw new Error("User not found");
+  if (user._id.equals(target._id)) throw new Error("Cannot block yourself");
 
-  user.isBlocked = false;
+  const isAlreadyBlocked = (user.blockedUsers ?? []).some((id) => id.equals(target._id));
+  if (!isAlreadyBlocked) {
+    user.blockedUsers ??= [];
+    user.blockedUsers.push(target._id);
+  }
+
+  user.following = user.following.filter((id) => !id.equals(target._id));
+  user.followers = user.followers.filter((id) => !id.equals(target._id));
+  target.following = target.following.filter((id) => !id.equals(user._id));
+  target.followers = target.followers.filter((id) => !id.equals(user._id));
+
+  await user.save();
+  await target.save();
+
+  return !isAlreadyBlocked;
+};
+
+export const unblockUser = async (userId: string, targetUserId: string) => {
+  if (userId === targetUserId) throw new Error("Cannot unblock yourself");
+
+  const user = await User.findOne({ _id: userId, isDeleted: false });
+  const target = await User.findOne({ _id: targetUserId, isDeleted: false });
+  if (!user || !target) throw new Error("User not found");
+  if (user._id.equals(target._id)) throw new Error("Cannot unblock yourself");
+
+  const wasBlocked = (user.blockedUsers ?? []).some((id) => id.equals(target._id));
+  user.blockedUsers = (user.blockedUsers ?? []).filter((id) => !id.equals(target._id));
   await user.save();
 
-  return true;
+  return wasBlocked;
 };
 
 export const searchUsers = async (query: string) => {
@@ -160,7 +195,7 @@ export const searchUsers = async (query: string) => {
 
 export const getSuggestedUsers = async (userId: string, limit: number) => {
   const currentUser = await User.findOne({ _id: userId, isDeleted: false }).select(
-    "following interests"
+    "following blockedUsers interests"
   );
   if (!currentUser) return null;
 
@@ -171,9 +206,12 @@ export const getSuggestedUsers = async (userId: string, limit: number) => {
   return User.aggregate([
     {
       $match: {
-        _id: { $nin: [currentUser._id, ...currentUser.following] },
+        _id: {
+          $nin: [currentUser._id, ...currentUser.following, ...(currentUser.blockedUsers ?? [])],
+        },
         isDeleted: false,
         isBlocked: false,
+        blockedUsers: { $nin: [currentUser._id] },
       },
     },
     {
