@@ -76,7 +76,10 @@ describe("admin destructive actions", () => {
       { sharedFrom: postId },
       { $set: { sharedFrom: null } }
     );
-    expect(mockUserUpdateMany).toHaveBeenCalledWith({}, { $pull: { savedPosts: postId } });
+    expect(mockUserUpdateMany).toHaveBeenCalledWith(
+      {},
+      { $pull: { savedPosts: postId, hiddenPosts: postId } }
+    );
   });
 
   it("hard-deletes a user and removes their owned and referenced content", async () => {
@@ -114,6 +117,12 @@ describe("admin destructive actions", () => {
       {},
       expect.objectContaining({
         $pull: expect.objectContaining({ blockedUsers: targetObjectId }),
+      })
+    );
+    expect(mockUserUpdateMany).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        $pull: expect.objectContaining({ mutedUsers: targetObjectId }),
       })
     );
   });

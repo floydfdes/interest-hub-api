@@ -6,9 +6,12 @@ import {
   getBlockedUsers,
   getFollowers,
   getFollowing,
+  getMutedUsers,
   getSuggestedUsers,
   getUserById,
   searchUsers,
+  muteUser,
+  unmuteUser,
   unblockUser,
   unfollowUser,
   updateUserProfile,
@@ -37,7 +40,7 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
   }
 
   const user = await User.findOne({ _id: req.userId, isDeleted: false }).select(
-    "name email role profilePic bio interests followers following blockedUsers createdAt updatedAt"
+    "name email role profilePic bio interests followers following blockedUsers mutedUsers hiddenPosts createdAt updatedAt"
   );
 
   if (!user) {
@@ -193,6 +196,20 @@ export const blocked = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const muted = async (req: AuthRequest, res: Response) => {
+  try {
+    const list = await getMutedUsers(req.userId!, getPagination(req.query));
+    if (!list) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+    res.status(200).json(list);
+  } catch (error) {
+    logError("Failed to fetch muted users", error, { userId: req.userId });
+    res.status(500).json({ message: "Failed to fetch muted users" });
+  }
+};
+
 export const suggested = async (req: AuthRequest, res: Response) => {
   try {
     const users = await getSuggestedUsers(req.userId!, getLimit(req.query.limit));
@@ -244,6 +261,46 @@ export const unblock = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     res.status(userActionErrorStatus(error)).json({
       message: error instanceof Error ? error.message : "Failed to unblock user",
+    });
+  }
+};
+
+export const mute = async (req: AuthRequest, res: Response) => {
+  try {
+    const { targetUserId } = req.params;
+    const didMute = await muteUser(req.userId!, targetUserId);
+    if (didMute) {
+      await recordActivity({
+        actorId: req.userId!,
+        type: "user_muted",
+        targetUserId,
+        ...getActivityRequestContext(req),
+      });
+    }
+    res.status(200).json({ message: "User muted" });
+  } catch (error) {
+    res.status(userActionErrorStatus(error)).json({
+      message: error instanceof Error ? error.message : "Failed to mute user",
+    });
+  }
+};
+
+export const unmute = async (req: AuthRequest, res: Response) => {
+  try {
+    const { targetUserId } = req.params;
+    const didUnmute = await unmuteUser(req.userId!, targetUserId);
+    if (didUnmute) {
+      await recordActivity({
+        actorId: req.userId!,
+        type: "user_unmuted",
+        targetUserId,
+        ...getActivityRequestContext(req),
+      });
+    }
+    res.status(200).json({ message: "User unmuted" });
+  } catch (error) {
+    res.status(userActionErrorStatus(error)).json({
+      message: error instanceof Error ? error.message : "Failed to unmute user",
     });
   }
 };

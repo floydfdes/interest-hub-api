@@ -7,15 +7,18 @@ import {
   getBookmarkedPostsService,
   getAllPostsService,
   getFollowingFeedService,
+  getHiddenPostsService,
   getPostByIdService,
   getRecommendedPostsService,
   getTrendingPostsService,
+  hidePostService,
   likePostService,
   getPostLikesService,
   removeBookmarkService,
   searchPostsService,
   TrendingPeriod,
   unlikePostService,
+  unhidePostService,
   updatePostService,
 } from "../services/postService";
 
@@ -208,6 +211,67 @@ export const getBookmarkedPosts = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     logError("Failed to fetch bookmarks", error, { userId: req.userId });
     res.status(500).json({ message: "Failed to fetch bookmarks" });
+  }
+};
+
+export const getHiddenPosts = async (req: AuthRequest, res: Response) => {
+  try {
+    const posts = await getHiddenPostsService(req.userId!, getPagination(req.query));
+    if (!posts) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.status(200).json(posts);
+  } catch (error) {
+    logError("Failed to fetch hidden posts", error, { userId: req.userId });
+    res.status(500).json({ message: "Failed to fetch hidden posts" });
+  }
+};
+
+export const hidePost = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await hidePostService(req.params.id, req.userId!);
+    if (!result) {
+      res.status(404).json({ message: "Post or user not found" });
+      return;
+    }
+    if (result.didHide) {
+      await recordActivity({
+        actorId: req.userId!,
+        type: "post_hidden",
+        postId: req.params.id,
+        ...getActivityRequestContext(req),
+      });
+    }
+
+    res.status(200).json({ message: "Post hidden" });
+  } catch (error) {
+    logError("Failed to hide post", error, { postId: req.params.id, userId: req.userId });
+    res.status(500).json({ message: "Failed to hide post" });
+  }
+};
+
+export const unhidePost = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await unhidePostService(req.params.id, req.userId!);
+    if (!result) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+    if (result.didUnhide) {
+      await recordActivity({
+        actorId: req.userId!,
+        type: "post_unhidden",
+        postId: req.params.id,
+        ...getActivityRequestContext(req),
+      });
+    }
+
+    res.status(200).json({ message: "Post unhidden" });
+  } catch (error) {
+    logError("Failed to unhide post", error, { postId: req.params.id, userId: req.userId });
+    res.status(500).json({ message: "Failed to unhide post" });
   }
 };
 

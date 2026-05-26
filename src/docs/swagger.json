@@ -489,7 +489,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Paginated chronological following feed returned as items and pagination metadata"
+                        "description": "Paginated chronological feed excluding blocked, muted, and hidden content"
                     },
                     "401": {
                         "description": "Unauthorized"
@@ -560,7 +560,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Posts ranked using follows, interests, engagement, and recency"
+                        "description": "Recommended posts excluding blocked, muted, and hidden content"
                     },
                     "401": {
                         "description": "Unauthorized"
@@ -582,6 +582,48 @@
                 "responses": {
                     "200": {
                         "description": "Bookmarked public posts"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            }
+        },
+        "/api/posts/hidden": {
+            "get": {
+                "tags": [
+                    "Posts"
+                ],
+                "summary": "Get posts hidden by the authenticated user",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 50,
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated public posts hidden by the signed-in user"
                     },
                     "401": {
                         "description": "Unauthorized"
@@ -888,6 +930,63 @@
                 }
             }
         },
+        "/api/posts/{id}/hide": {
+            "post": {
+                "tags": [
+                    "Posts"
+                ],
+                "summary": "Hide a public post from personalized content",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Post hidden"
+                    },
+                    "404": {
+                        "description": "Post or user not found"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Posts"
+                ],
+                "summary": "Restore a hidden post to personalized content",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Post unhidden"
+                    }
+                }
+            }
+        },
         "/api/users/me": {
             "get": {
                 "tags": [
@@ -933,7 +1032,11 @@
                                 "post_liked",
                                 "report_submitted",
                                 "user_blocked",
-                                "user_unblocked"
+                                "user_unblocked",
+                                "user_muted",
+                                "user_unmuted",
+                                "post_hidden",
+                                "post_unhidden"
                             ]
                         }
                     },
@@ -1247,6 +1350,116 @@
                     },
                     "401": {
                         "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "User not found"
+                    }
+                }
+            }
+        },
+        "/api/users/muted": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get users muted by the authenticated user",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 50,
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated users muted by the signed-in user"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            }
+        },
+        "/api/users/mute/{targetUserId}": {
+            "post": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Mute another user's content without changing follow status",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "targetUserId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User muted"
+                    },
+                    "400": {
+                        "description": "Cannot mute yourself"
+                    },
+                    "404": {
+                        "description": "User not found"
+                    }
+                }
+            }
+        },
+        "/api/users/unmute/{targetUserId}": {
+            "post": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Unmute another user",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "targetUserId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User unmuted"
+                    },
+                    "400": {
+                        "description": "Cannot unmute yourself"
                     },
                     "404": {
                         "description": "User not found"
@@ -1890,7 +2103,11 @@
                                 "post_liked",
                                 "report_submitted",
                                 "user_blocked",
-                                "user_unblocked"
+                                "user_unblocked",
+                                "user_muted",
+                                "user_unmuted",
+                                "post_hidden",
+                                "post_unhidden"
                             ]
                         }
                     },

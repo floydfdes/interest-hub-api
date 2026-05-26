@@ -11,7 +11,9 @@ export interface IUser extends Document {
   followers: Types.ObjectId[];
   following: Types.ObjectId[];
   blockedUsers: Types.ObjectId[];
+  mutedUsers: Types.ObjectId[];
   savedPosts: Types.ObjectId[];
+  hiddenPosts: Types.ObjectId[];
   otp: string | null;
   otpExpires: Date | null;
   is2FAEnabled: boolean;
@@ -42,7 +44,9 @@ const UserSchema = new Schema<IUser>(
     followers: [{ type: Schema.Types.ObjectId, ref: "User" }],
     following: [{ type: Schema.Types.ObjectId, ref: "User" }],
     blockedUsers: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    mutedUsers: [{ type: Schema.Types.ObjectId, ref: "User" }],
     savedPosts: [{ type: Schema.Types.ObjectId, ref: "Post" }],
+    hiddenPosts: [{ type: Schema.Types.ObjectId, ref: "Post" }],
     otp: { type: String, default: null },
     otpExpires: { type: Date, default: null },
     is2FAEnabled: { type: Boolean, default: false },

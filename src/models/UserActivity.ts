@@ -8,6 +8,10 @@ export const USER_ACTIVITY_TYPES = [
   "report_submitted",
   "user_blocked",
   "user_unblocked",
+  "user_muted",
+  "user_unmuted",
+  "post_hidden",
+  "post_unhidden",
 ] as const;
 
 export type UserActivityType = (typeof USER_ACTIVITY_TYPES)[number];

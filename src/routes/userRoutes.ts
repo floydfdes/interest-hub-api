@@ -8,9 +8,12 @@ import {
   following,
   getMe,
   getProfile,
+  mute,
+  muted,
   search,
   suggested,
   unblock,
+  unmute,
   unfollow,
   updateProfile,
 } from "../controllers/userController";
@@ -24,6 +27,7 @@ router.get("/me", authMiddleware, getMe);
 router.get("/activities", authMiddleware, activities);
 router.get("/suggested", authMiddleware, suggested);
 router.get("/blocked", authMiddleware, blocked);
+router.get("/muted", authMiddleware, muted);
 router.get("/profile/:id", getProfile);
 router.patch("/update", authMiddleware, updateProfile);
 router.delete("/delete", authMiddleware, deleteAccount);
@@ -36,6 +40,8 @@ router.get("/:id/following", following);
 
 router.post("/block/:targetUserId", authMiddleware, block);
 router.post("/unblock/:targetUserId", authMiddleware, unblock);
+router.post("/mute/:targetUserId", authMiddleware, mute);
+router.post("/unmute/:targetUserId", authMiddleware, unmute);
 
 router.get("/search", search);
 

@@ -68,6 +68,8 @@ describe("post discovery services", () => {
   const followedId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439012");
   const postId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439013");
   const blockedId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439014");
+  const mutedId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439016");
+  const hiddenPostId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439017");
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -77,6 +79,8 @@ describe("post discovery services", () => {
       _id: new mongoose.Types.ObjectId(userId),
       following: [followedId],
       blockedUsers: [blockedId],
+      mutedUsers: [mutedId],
+      hiddenPosts: [hiddenPostId],
       interests: ["Travel", "Photography"],
     });
   });
@@ -85,7 +89,8 @@ describe("post discovery services", () => {
     const result = await getFollowingFeedService(userId, { page: 2, limit: 20, skip: 20 });
 
     expect(mockPostFind).toHaveBeenCalledWith({
-      author: { $in: [followedId], $nin: [blockedId] },
+      _id: { $nin: [hiddenPostId] },
+      author: { $in: [followedId], $nin: [blockedId, mutedId] },
       visibility: "public",
     });
     expect(mockPostSort).toHaveBeenCalledWith({ createdAt: -1 });
@@ -120,8 +125,9 @@ describe("post discovery services", () => {
     const pipeline = mockPostAggregate.mock.calls[0][0];
     expect(pipeline[0]).toEqual({
       $match: {
+        _id: { $nin: [hiddenPostId] },
         visibility: "public",
-        author: { $ne: new mongoose.Types.ObjectId(userId), $nin: [blockedId] },
+        author: { $ne: new mongoose.Types.ObjectId(userId), $nin: [blockedId, mutedId] },
       },
     });
     expect(pipeline).toContainEqual({ $limit: 15 });
@@ -136,8 +142,12 @@ describe("post discovery services", () => {
     const pipeline = mockPostAggregate.mock.calls[0][0];
     expect(pipeline[0]).toEqual({
       $match: {
+        _id: { $nin: [hiddenPostId] },
         visibility: "public",
-        author: { $ne: new mongoose.Types.ObjectId(userId), $nin: [blockedId, blockingId] },
+        author: {
+          $ne: new mongoose.Types.ObjectId(userId),
+          $nin: [blockedId, mutedId, blockingId],
+        },
       },
     });
   });
@@ -213,6 +223,8 @@ describe("suggested users", () => {
       _id: userId,
       following: [followedId],
       blockedUsers: [],
+      mutedUsers: [],
+      hiddenPosts: [],
       interests: ["Travel"],
     });
 

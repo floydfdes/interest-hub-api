@@ -13,7 +13,15 @@ jest.mock("../utils/uploadImage", () => ({
   uploadImageToCloudinary: jest.fn(),
 }));
 
-import { blockUser, followUser, getBlockedUsers, unblockUser } from "../services/userService";
+import {
+  blockUser,
+  followUser,
+  getBlockedUsers,
+  getMutedUsers,
+  muteUser,
+  unblockUser,
+  unmuteUser,
+} from "../services/userService";
 
 const userId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439011");
 const targetId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439012");
@@ -23,7 +31,59 @@ const createUser = (id: mongoose.Types.ObjectId) => ({
   followers: [] as mongoose.Types.ObjectId[],
   following: [] as mongoose.Types.ObjectId[],
   blockedUsers: [] as mongoose.Types.ObjectId[],
+  mutedUsers: [] as mongoose.Types.ObjectId[],
   save: jest.fn().mockResolvedValue(undefined),
+});
+
+describe("personal user muting", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("mutes a user without removing a follow relationship", async () => {
+    const user = createUser(userId);
+    const target = createUser(targetId);
+    user.following = [targetId];
+    target.followers = [userId];
+    mockUserFindOne.mockResolvedValueOnce(user).mockResolvedValueOnce(target);
+
+    await expect(muteUser(userId.toString(), targetId.toString())).resolves.toBe(true);
+
+    expect(user.mutedUsers).toEqual([targetId]);
+    expect(user.following).toEqual([targetId]);
+    expect(target.followers).toEqual([userId]);
+  });
+
+  it("rejects muting yourself", async () => {
+    await expect(muteUser(userId.toString(), userId.toString())).rejects.toThrow(
+      "Cannot mute yourself"
+    );
+  });
+
+  it("unmutes a user", async () => {
+    const user = createUser(userId);
+    const target = createUser(targetId);
+    user.mutedUsers = [targetId];
+    mockUserFindOne.mockResolvedValueOnce(user).mockResolvedValueOnce(target);
+
+    await expect(unmuteUser(userId.toString(), targetId.toString())).resolves.toBe(true);
+    expect(user.mutedUsers).toEqual([]);
+  });
+
+  it("returns the authenticated user's paginated muted list", async () => {
+    const populate = jest.fn().mockResolvedValue(undefined);
+    const select = jest.fn().mockResolvedValue({ mutedUsers: [targetId], populate });
+    mockUserFindOne.mockReturnValueOnce({ select });
+
+    const result = await getMutedUsers(userId.toString(), { page: 1, limit: 20, skip: 0 });
+
+    expect(populate).toHaveBeenCalledWith({
+      path: "mutedUsers",
+      select: "name profilePic",
+      options: { skip: 0, limit: 20 },
+    });
+    expect(result?.pagination.total).toBe(1);
+  });
 });
 
 describe("personal user blocking", () => {

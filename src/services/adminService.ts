@@ -201,7 +201,9 @@ export const deleteAdminUserService = async (id: string, actorId: string) => {
           followers: user._id,
           following: user._id,
           blockedUsers: user._id,
+          mutedUsers: user._id,
           savedPosts: { $in: postIds },
+          hiddenPosts: { $in: postIds },
         },
       }
     ),
@@ -255,7 +257,9 @@ export const bulkDeleteAdminUsersService = async (ids: string[], actorId: string
           followers: { $in: userIds },
           following: { $in: userIds },
           blockedUsers: { $in: userIds },
+          mutedUsers: { $in: userIds },
           savedPosts: { $in: postIds },
+          hiddenPosts: { $in: postIds },
         },
       }
     ),
@@ -317,7 +321,7 @@ export const deleteAdminPostService = async (id: string) => {
   await Promise.all([
     Comment.deleteMany({ post: post._id }),
     Post.updateMany({ sharedFrom: post._id }, { $set: { sharedFrom: null } }),
-    User.updateMany({}, { $pull: { savedPosts: post._id } }),
+    User.updateMany({}, { $pull: { savedPosts: post._id, hiddenPosts: post._id } }),
   ]);
   return true;
 };
@@ -331,7 +335,7 @@ export const bulkDeleteAdminPostsService = async (ids: string[]) => {
     Post.deleteMany({ _id: { $in: postIds } }),
     Comment.deleteMany({ post: { $in: postIds } }),
     Post.updateMany({ sharedFrom: { $in: postIds } }, { $set: { sharedFrom: null } }),
-    User.updateMany({}, { $pull: { savedPosts: { $in: postIds } } }),
+    User.updateMany({}, { $pull: { savedPosts: { $in: postIds }, hiddenPosts: { $in: postIds } } }),
   ]);
 
   return { requested: selectedIds.length, deleted: postIds.length };

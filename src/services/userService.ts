@@ -142,6 +142,20 @@ export const getBlockedUsers = async (userId: string, pagination: PaginationPara
   return paginatedResponse(user.blockedUsers, total, pagination);
 };
 
+export const getMutedUsers = async (userId: string, pagination: PaginationParams) => {
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select("mutedUsers");
+  if (!user) return null;
+
+  const total = user.mutedUsers.length;
+  await user.populate({
+    path: "mutedUsers",
+    select: "name profilePic",
+    options: { skip: pagination.skip, limit: pagination.limit },
+  });
+
+  return paginatedResponse(user.mutedUsers, total, pagination);
+};
+
 export const blockUser = async (userId: string, targetUserId: string) => {
   if (userId === targetUserId) throw new Error("Cannot block yourself");
 
@@ -180,6 +194,41 @@ export const unblockUser = async (userId: string, targetUserId: string) => {
   await user.save();
 
   return wasBlocked;
+};
+
+export const muteUser = async (userId: string, targetUserId: string) => {
+  if (userId === targetUserId) throw new Error("Cannot mute yourself");
+
+  const user = await User.findOne({ _id: userId, isDeleted: false });
+  const target = await User.findOne({ _id: targetUserId, isDeleted: false });
+  if (!user || !target) throw new Error("User not found");
+  if (user._id.equals(target._id)) throw new Error("Cannot mute yourself");
+
+  const isAlreadyMuted = (user.mutedUsers ?? []).some((id) => id.equals(target._id));
+  if (!isAlreadyMuted) {
+    user.mutedUsers ??= [];
+    user.mutedUsers.push(target._id);
+    await user.save();
+  }
+
+  return !isAlreadyMuted;
+};
+
+export const unmuteUser = async (userId: string, targetUserId: string) => {
+  if (userId === targetUserId) throw new Error("Cannot unmute yourself");
+
+  const user = await User.findOne({ _id: userId, isDeleted: false });
+  const target = await User.findOne({ _id: targetUserId, isDeleted: false });
+  if (!user || !target) throw new Error("User not found");
+  if (user._id.equals(target._id)) throw new Error("Cannot unmute yourself");
+
+  const wasMuted = (user.mutedUsers ?? []).some((id) => id.equals(target._id));
+  if (wasMuted) {
+    user.mutedUsers = user.mutedUsers.filter((id) => !id.equals(target._id));
+    await user.save();
+  }
+
+  return wasMuted;
 };
 
 export const searchUsers = async (query: string) => {
