@@ -93,6 +93,7 @@ describe("post discovery services", () => {
       author: { $in: [followedId], $nin: [blockedId, mutedId] },
       visibility: { $in: ["public", "followersOnly"] },
       isArchived: { $ne: true },
+      isModerationHidden: { $ne: true },
     });
     expect(mockPostSort).toHaveBeenCalledWith({ createdAt: -1 });
     expect(mockPostSkip).toHaveBeenCalledWith(20);
@@ -115,6 +116,7 @@ describe("post discovery services", () => {
       $match: {
         visibility: "public",
         isArchived: { $ne: true },
+        isModerationHidden: { $ne: true },
         createdAt: { $gte: expect.any(Date) },
       },
     });
@@ -130,6 +132,7 @@ describe("post discovery services", () => {
         _id: { $nin: [hiddenPostId] },
         visibility: "public",
         isArchived: { $ne: true },
+        isModerationHidden: { $ne: true },
         author: { $ne: new mongoose.Types.ObjectId(userId), $nin: [blockedId, mutedId] },
       },
     });
@@ -148,6 +151,7 @@ describe("post discovery services", () => {
         _id: { $nin: [hiddenPostId] },
         visibility: "public",
         isArchived: { $ne: true },
+        isModerationHidden: { $ne: true },
         author: {
           $ne: new mongoose.Types.ObjectId(userId),
           $nin: [blockedId, mutedId, blockingId],
@@ -166,6 +170,7 @@ describe("post discovery services", () => {
       _id: postId.toString(),
       visibility: "public",
       isArchived: { $ne: true },
+      isModerationHidden: { $ne: true },
     });
     expect(mockUserFindOneAndUpdate).toHaveBeenCalledWith(
       { _id: userId, isDeleted: false },
@@ -183,7 +188,11 @@ describe("post discovery services", () => {
 
     expect(mockUserPopulate).toHaveBeenCalledWith({
       path: "savedPosts",
-      match: { visibility: "public", isArchived: { $ne: true } },
+      match: {
+        visibility: "public",
+        isArchived: { $ne: true },
+        isModerationHidden: { $ne: true },
+      },
       options: { sort: { createdAt: -1 } },
       populate: { path: "author", select: "name profilePic" },
     });

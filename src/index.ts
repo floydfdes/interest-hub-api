@@ -15,6 +15,7 @@ import authRoutes from "./routes/authRoutes";
 import commentRoutes from "./routes/commentRoutes";
 import contactRoutes from "./routes/contactRoutes";
 import postRoutes from "./routes/postRoutes";
+import reportRoutes from "./routes/reportRoutes";
 import userRoutes from "./routes/userRoutes";
 import logger, { logError } from "./utils/logger";
 
@@ -52,6 +53,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/comments", commentRoutes);
+app.use("/api/reports", reportRoutes);
 app.use("/api/contact", contactRoutes);
 
 app.get("/api/health", (_req: Request, res: Response) => {

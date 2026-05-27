@@ -84,6 +84,7 @@ describe("personal post hiding", () => {
       _id: { $in: [postId] },
       visibility: "public",
       isArchived: { $ne: true },
+      isModerationHidden: { $ne: true },
     });
     expect(result?.pagination.total).toBe(1);
   });
@@ -126,7 +127,11 @@ describe("post archiving", () => {
   it("returns only the owner's archived posts with pagination", async () => {
     await getArchivedPostsService(userId, { page: 1, limit: 20, skip: 0 });
 
-    expect(mockPostFind).toHaveBeenCalledWith({ author: userId, isArchived: true });
+    expect(mockPostFind).toHaveBeenCalledWith({
+      author: userId,
+      isArchived: true,
+      isModerationHidden: { $ne: true },
+    });
     expect(mockPostSort).toHaveBeenCalledWith({ archivedAt: -1 });
   });
 });

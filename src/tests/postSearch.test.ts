@@ -52,6 +52,7 @@ describe("post search and tags", () => {
     expect(mockFind).toHaveBeenCalledWith({
       visibility: "public",
       isArchived: { $ne: true },
+      isModerationHidden: { $ne: true },
       $or: [{ title: /C\+\+/i }, { content: /C\+\+/i }, { category: /C\+\+/i }, { tags: /C\+\+/i }],
     });
     expect(mockPopulate).toHaveBeenCalledWith("author", "name profilePic");
@@ -68,6 +69,7 @@ describe("post search and tags", () => {
     expect(mockFind).toHaveBeenCalledWith({
       visibility: "public",
       isArchived: { $ne: true },
+      isModerationHidden: { $ne: true },
       category: /Technology/i,
       title: /Typescript/i,
       content: /service/i,
@@ -81,6 +83,7 @@ describe("post search and tags", () => {
     expect(mockFind).toHaveBeenCalledWith({
       visibility: "public",
       isArchived: { $ne: true },
+      isModerationHidden: { $ne: true },
       title: /only title/i,
     });
   });

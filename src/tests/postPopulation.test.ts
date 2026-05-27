@@ -38,6 +38,7 @@ describe("getPostByIdService", () => {
     expect(mockPopulateComments).toHaveBeenCalledWith({
       path: "comments",
       model: "Comment",
+      match: { isModerationHidden: { $ne: true } },
       populate: [
         { path: "user", select: "name profilePic" },
         { path: "replies.user", select: "name profilePic" },

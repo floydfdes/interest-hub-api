@@ -19,7 +19,11 @@ export const createCommentService = async (
   postId: string,
   content: string
 ): Promise<IComment> => {
-  const post = await Post.findById(postId);
+  const post = await Post.findOne({
+    _id: postId,
+    isArchived: { $ne: true },
+    isModerationHidden: { $ne: true },
+  });
   if (!post) throw new Error("Post not found");
 
   const comment = new CommentModel({

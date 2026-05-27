@@ -13,6 +13,7 @@ export interface IComment extends Document {
   content: string;
   likes: mongoose.Types.ObjectId[];
   replies: IReply[];
+  isModerationHidden: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,6 +35,7 @@ const CommentSchema = new Schema<IComment>(
     content: { type: String, required: true },
     likes: [{ type: Schema.Types.ObjectId, ref: "User" }],
     replies: [ReplySchema],
+    isModerationHidden: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

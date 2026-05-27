@@ -23,6 +23,10 @@
             "description": "Comment operations"
         },
         {
+            "name": "Reports",
+            "description": "Report users, posts, or comments for moderation"
+        },
+        {
             "name": "Admin",
             "description": "Administrator dashboard and moderation operations"
         }
@@ -2185,6 +2189,52 @@
                 }
             }
         },
+        "/api/reports": {
+            "post": {
+                "tags": ["Reports"],
+                "summary": "Report a post, comment, or user",
+                "security": [{ "bearerAuth": [] }],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["targetType", "targetId", "reason"],
+                                "properties": {
+                                    "targetType": { "type": "string", "enum": ["post", "comment", "user"] },
+                                    "targetId": { "type": "string" },
+                                    "reason": {
+                                        "type": "string",
+                                        "enum": ["spam", "harassment", "hate_speech", "violence", "sexual_content", "misinformation", "impersonation", "other"]
+                                    },
+                                    "details": { "type": "string", "maxLength": 500 }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": { "description": "Report submitted" },
+                    "400": { "description": "Invalid, duplicate, or self report" },
+                    "404": { "description": "Report target not found" }
+                }
+            }
+        },
+        "/api/reports/me": {
+            "get": {
+                "tags": ["Reports"],
+                "summary": "Get reports submitted by the authenticated user",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+                    { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 } }
+                ],
+                "responses": {
+                    "200": { "description": "Paginated submitted reports" }
+                }
+            }
+        },
         "/api/admin/access": {
             "get": {
                 "tags": ["Admin"],
@@ -2238,6 +2288,92 @@
                     "200": { "description": "Paginated activity events returned as items and pagination metadata" },
                     "400": { "description": "Invalid activity type or actor ID" },
                     "403": { "description": "Administrator access required" }
+                }
+            }
+        },
+        "/api/admin/reports": {
+            "get": {
+                "tags": ["Admin"],
+                "summary": "List reports in the moderation queue",
+                "parameters": [
+                    { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["pending", "reviewing", "resolved", "dismissed"] } },
+                    { "name": "targetType", "in": "query", "schema": { "type": "string", "enum": ["post", "comment", "user"] } },
+                    { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+                    { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } }
+                ],
+                "responses": {
+                    "200": { "description": "Paginated moderation reports" },
+                    "400": { "description": "Invalid report filter" }
+                }
+            }
+        },
+        "/api/admin/reports/{id}": {
+            "get": {
+                "tags": ["Admin"],
+                "summary": "Get one report with its reported target",
+                "parameters": [
+                    { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+                ],
+                "responses": {
+                    "200": { "description": "Report detail" },
+                    "404": { "description": "Report not found" }
+                }
+            }
+        },
+        "/api/admin/reports/{id}/status": {
+            "patch": {
+                "tags": ["Admin"],
+                "summary": "Mark a report as reviewing, resolved, or dismissed",
+                "parameters": [
+                    { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["status"],
+                                "properties": {
+                                    "status": { "type": "string", "enum": ["reviewing", "resolved", "dismissed"] },
+                                    "note": { "type": "string", "maxLength": 500 }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": { "description": "Report status updated" },
+                    "404": { "description": "Report not found" }
+                }
+            }
+        },
+        "/api/admin/reports/{id}/action": {
+            "patch": {
+                "tags": ["Admin"],
+                "summary": "Take moderation action and resolve a report",
+                "parameters": [
+                    { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["action"],
+                                "properties": {
+                                    "action": { "type": "string", "enum": ["content_hidden", "content_removed", "user_suspended"] },
+                                    "note": { "type": "string", "maxLength": 500 }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": { "description": "Moderation action completed and report resolved" },
+                    "400": { "description": "Action is incompatible with report target" },
+                    "404": { "description": "Report or reported target not found" }
                 }
             }
         },

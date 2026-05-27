@@ -29,6 +29,18 @@ import {
   recordActivity,
 } from "../services/activityService";
 import { USER_ACTIVITY_TYPES, UserActivityType } from "../models/UserActivity";
+import {
+  REPORT_STATUSES,
+  REPORT_TARGET_TYPES,
+  ReportStatus,
+  ReportTargetType,
+} from "../models/Report";
+import {
+  getAdminReportByIdService,
+  getAdminReportsService,
+  moderateReportService,
+  reviewReportService,
+} from "../services/reportService";
 
 const errorResponse = (res: Response, error: unknown, operation: string): void => {
   const message = error instanceof Error ? error.message : operation;
@@ -38,6 +50,14 @@ const errorResponse = (res: Response, error: unknown, operation: string): void =
   }
   if (message === "One or more post authors not found") {
     res.status(404).json({ message });
+    return;
+  }
+  if (message === "Reported content not found" || message === "Reported user not found") {
+    res.status(404).json({ message });
+    return;
+  }
+  if (message === "Action is not available for this report") {
+    res.status(400).json({ message });
     return;
   }
   if (message.startsWith("Cannot ")) {
@@ -85,6 +105,90 @@ export const getAdminActivities = async (req: AuthRequest, res: Response) => {
     );
   } catch (error) {
     errorResponse(res, error, "Failed to fetch activities");
+  }
+};
+
+export const getAdminReports = async (req: AuthRequest, res: Response) => {
+  const status = typeof req.query.status === "string" ? req.query.status : undefined;
+  const targetType = typeof req.query.targetType === "string" ? req.query.targetType : undefined;
+  if (status && !REPORT_STATUSES.includes(status as ReportStatus)) {
+    res.status(400).json({ message: "Invalid report status" });
+    return;
+  }
+  if (targetType && !REPORT_TARGET_TYPES.includes(targetType as ReportTargetType)) {
+    res.status(400).json({ message: "Invalid report target type" });
+    return;
+  }
+
+  try {
+    res.status(200).json(
+      await getAdminReportsService({
+        status: status as ReportStatus | undefined,
+        targetType: targetType as ReportTargetType | undefined,
+        pagination: getPagination(req.query, 20, 100),
+      })
+    );
+  } catch (error) {
+    errorResponse(res, error, "Failed to fetch reports");
+  }
+};
+
+export const getAdminReportById = async (req: AuthRequest, res: Response) => {
+  try {
+    const report = await getAdminReportByIdService(req.params.id);
+    if (!report) {
+      res.status(404).json({ message: "Report not found" });
+      return;
+    }
+    res.status(200).json(report);
+  } catch (error) {
+    errorResponse(res, error, "Failed to fetch report");
+  }
+};
+
+export const reviewAdminReport = async (req: AuthRequest, res: Response) => {
+  try {
+    const report = await reviewReportService(
+      req.params.id,
+      req.userId!,
+      req.body.status,
+      req.body.note
+    );
+    if (!report) {
+      res.status(404).json({ message: "Report not found" });
+      return;
+    }
+    res.status(200).json(report);
+  } catch (error) {
+    errorResponse(res, error, "Failed to review report");
+  }
+};
+
+export const moderateAdminReport = async (req: AuthRequest, res: Response) => {
+  try {
+    const report = await moderateReportService(
+      req.params.id,
+      req.userId!,
+      req.body.action,
+      req.body.note
+    );
+    if (!report) {
+      res.status(404).json({ message: "Report not found" });
+      return;
+    }
+    if (req.body.action === "user_suspended" && report.targetUser) {
+      await recordActivity({
+        actorId: req.userId!,
+        type: "user_blocked",
+        targetUserId: report.targetUser.toString(),
+        reportId: report._id.toString(),
+        metadata: { action: "user_suspended" },
+        ...getActivityRequestContext(req),
+      });
+    }
+    res.status(200).json(report);
+  } catch (error) {
+    errorResponse(res, error, "Failed to moderate report");
   }
 };
 

@@ -16,9 +16,13 @@ import {
   getAdminActivities,
   getAdminPostById,
   getAdminPosts,
+  getAdminReportById,
+  getAdminReports,
   getAdminUserById,
   getAdminUsers,
   unblockAdminUser,
+  moderateAdminReport,
+  reviewAdminReport,
   updateAdminUser,
 } from "../controllers/adminController";
 import adminMiddleware from "../middleware/adminMiddleware";
@@ -30,6 +34,7 @@ import {
   createAdminUserValidation,
   updateAdminUserValidation,
 } from "../middleware/validateAdmin";
+import { moderateReportValidation, reviewReportValidation } from "../middleware/validateReport";
 import validate from "../middleware/validate";
 
 const router = express.Router();
@@ -39,6 +44,10 @@ router.use(authMiddleware, adminMiddleware);
 router.get("/access", checkAdminAccess);
 router.get("/dashboard", getAdminDashboard);
 router.get("/activities", getAdminActivities);
+router.get("/reports", getAdminReports);
+router.get("/reports/:id", getAdminReportById);
+router.patch("/reports/:id/status", reviewReportValidation, validate, reviewAdminReport);
+router.patch("/reports/:id/action", moderateReportValidation, validate, moderateAdminReport);
 
 router.get("/users", getAdminUsers);
 router.post("/users/bulk-create", bulkCreateAdminUsersValidation, validate, bulkCreateAdminUsers);

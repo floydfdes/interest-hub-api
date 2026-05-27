@@ -17,6 +17,7 @@ export interface IPost extends Document {
   isEdited: boolean;
   isArchived: boolean;
   archivedAt: Date | null;
+  isModerationHidden: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -44,6 +45,7 @@ const PostSchema = new Schema<IPost>(
     isEdited: { type: Boolean, default: false },
     isArchived: { type: Boolean, default: false },
     archivedAt: { type: Date, default: null },
+    isModerationHidden: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
