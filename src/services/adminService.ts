@@ -4,6 +4,7 @@ import Comment from "../models/Comment";
 import Post, { Visibility } from "../models/Post";
 import User from "../models/User";
 import { paginatedResponse, PaginationParams } from "../utils/pagination";
+import { uploadImageToCloudinary } from "../utils/uploadImage";
 
 const safeUserFields = "-password -otp -otpExpires -twoFASecret -resetToken -resetTokenExpiry";
 
@@ -20,6 +21,16 @@ export interface AdminUserInput {
 
 export type AdminUserUpdate = Partial<AdminUserInput>;
 
+export interface AdminPostInput {
+  author: string;
+  title: string;
+  content: string;
+  image: string;
+  category: string;
+  tags?: string[];
+  visibility?: Visibility;
+}
+
 interface AdminPostFilters {
   query?: string;
   authorId?: string;
@@ -31,6 +42,10 @@ const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]
 
 const uniqueObjectIds = (ids: string[]) =>
   [...new Set(ids)].map((id) => new mongoose.Types.ObjectId(id));
+
+const normalizeTags = (tags: string[] = []): string[] => [
+  ...new Set(tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean)),
+];
 
 export const getAdminDashboardService = async () => {
   const [
@@ -120,6 +135,30 @@ export const createAdminUserService = async (input: AdminUserInput) => {
   });
 
   return User.findById(user._id).select(safeUserFields);
+};
+
+export const bulkCreateAdminUsersService = async (inputs: AdminUserInput[]) => {
+  const emails = inputs.map((input) => input.email.trim().toLowerCase());
+  if (new Set(emails).size !== emails.length) throw new Error("Email already in use");
+
+  const existingUser = await User.findOne({ email: { $in: emails } });
+  if (existingUser) throw new Error("Email already in use");
+
+  const passwords = await Promise.all(inputs.map((input) => bcrypt.hash(input.password, 10)));
+  const users = await User.insertMany(
+    inputs.map((input, index) => ({
+      name: input.name,
+      email: emails[index],
+      password: passwords[index],
+      role: input.role,
+      profilePic: input.profilePic,
+      bio: input.bio,
+      interests: input.interests,
+      isBlocked: input.isBlocked,
+    }))
+  );
+
+  return User.find({ _id: { $in: users.map((user) => user._id) } }).select(safeUserFields);
 };
 
 export const updateAdminUserService = async (
@@ -313,6 +352,33 @@ export const getAdminPostByIdService = async (id: string) =>
         { path: "replies.user", select: "name email profilePic" },
       ],
     });
+
+export const bulkCreateAdminPostsService = async (inputs: AdminPostInput[]) => {
+  const authorIds = uniqueObjectIds(inputs.map((input) => input.author));
+  const authors = await User.find({
+    _id: { $in: authorIds },
+    isDeleted: false,
+  }).select("_id");
+  if (authors.length !== authorIds.length) {
+    throw new Error("One or more post authors not found");
+  }
+
+  const images = await Promise.all(
+    inputs.map((input) => uploadImageToCloudinary(input.image, "post_images"))
+  );
+
+  return Post.insertMany(
+    inputs.map((input, index) => ({
+      author: new mongoose.Types.ObjectId(input.author),
+      title: input.title,
+      content: input.content,
+      image: images[index],
+      category: input.category,
+      tags: normalizeTags(input.tags),
+      visibility: input.visibility,
+    }))
+  );
+};
 
 export const deleteAdminPostService = async (id: string) => {
   const post = await Post.findByIdAndDelete(id);

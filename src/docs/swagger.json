@@ -2164,6 +2164,50 @@
                 }
             }
         },
+        "/api/admin/users/bulk-create": {
+            "post": {
+                "tags": ["Admin"],
+                "summary": "Create multiple users",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["users"],
+                                "properties": {
+                                    "users": {
+                                        "type": "array",
+                                        "minItems": 1,
+                                        "maxItems": 100,
+                                        "items": {
+                                            "type": "object",
+                                            "required": ["name", "email", "password"],
+                                            "properties": {
+                                                "name": { "type": "string" },
+                                                "email": { "type": "string", "format": "email" },
+                                                "password": { "type": "string", "minLength": 6 },
+                                                "role": { "type": "string", "enum": ["user", "admin"] },
+                                                "profilePic": { "type": "string", "nullable": true },
+                                                "bio": { "type": "string", "maxLength": 160 },
+                                                "interests": { "type": "array", "items": { "type": "string" } },
+                                                "isBlocked": { "type": "boolean" }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": { "description": "Users created" },
+                    "400": { "description": "Invalid batch payload" },
+                    "409": { "description": "An email is already in use" },
+                    "403": { "description": "Administrator access required" }
+                }
+            }
+        },
         "/api/admin/users/{id}": {
             "parameters": [
                 { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
@@ -2254,6 +2298,49 @@
                     { "name": "limit", "in": "query", "schema": { "type": "integer" } }
                 ],
                 "responses": { "200": { "description": "Paginated posts" } }
+            }
+        },
+        "/api/admin/posts/bulk-create": {
+            "post": {
+                "tags": ["Admin"],
+                "summary": "Create multiple posts for selected users",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["posts"],
+                                "properties": {
+                                    "posts": {
+                                        "type": "array",
+                                        "minItems": 1,
+                                        "maxItems": 50,
+                                        "items": {
+                                            "type": "object",
+                                            "required": ["author", "title", "content", "image", "category"],
+                                            "properties": {
+                                                "author": { "type": "string", "description": "User ID that owns the post" },
+                                                "title": { "type": "string" },
+                                                "content": { "type": "string" },
+                                                "image": { "type": "string", "description": "Base64 encoded image or data URI" },
+                                                "category": { "type": "string" },
+                                                "tags": { "type": "array", "items": { "type": "string" } },
+                                                "visibility": { "type": "string", "enum": ["public", "private", "followersOnly"] }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": { "description": "Posts created" },
+                    "400": { "description": "Invalid batch payload" },
+                    "404": { "description": "One or more post authors not found" },
+                    "403": { "description": "Administrator access required" }
+                }
             }
         },
         "/api/admin/posts/{id}": {

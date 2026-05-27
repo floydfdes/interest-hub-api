@@ -5,6 +5,8 @@ import {
   bulkDeleteAdminCommentsService,
   bulkDeleteAdminPostsService,
   bulkDeleteAdminUsersService,
+  bulkCreateAdminPostsService,
+  bulkCreateAdminUsersService,
   createAdminUserService,
   deleteAdminCommentService,
   deleteAdminPostService,
@@ -32,6 +34,10 @@ const errorResponse = (res: Response, error: unknown, operation: string): void =
   const message = error instanceof Error ? error.message : operation;
   if (message === "Email already in use") {
     res.status(409).json({ message });
+    return;
+  }
+  if (message === "One or more post authors not found") {
+    res.status(404).json({ message });
     return;
   }
   if (message.startsWith("Cannot ")) {
@@ -110,6 +116,15 @@ export const createAdminUser = async (req: AuthRequest, res: Response) => {
     res.status(201).json(user);
   } catch (error) {
     errorResponse(res, error, "Failed to create user");
+  }
+};
+
+export const bulkCreateAdminUsers = async (req: AuthRequest, res: Response) => {
+  try {
+    const users = await bulkCreateAdminUsersService(req.body.users);
+    res.status(201).json({ message: "Users created", created: users.length, users });
+  } catch (error) {
+    errorResponse(res, error, "Failed to create users");
   }
 };
 
@@ -217,6 +232,15 @@ export const getAdminPostById = async (req: AuthRequest, res: Response) => {
     res.status(200).json(post);
   } catch (error) {
     errorResponse(res, error, "Failed to fetch post");
+  }
+};
+
+export const bulkCreateAdminPosts = async (req: AuthRequest, res: Response) => {
+  try {
+    const posts = await bulkCreateAdminPostsService(req.body.posts);
+    res.status(201).json({ message: "Posts created", created: posts.length, posts });
+  } catch (error) {
+    errorResponse(res, error, "Failed to create posts");
   }
 };
 

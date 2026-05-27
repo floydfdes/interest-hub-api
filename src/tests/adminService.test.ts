@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 const mockPostFindByIdAndDelete = jest.fn();
 const mockPostDeleteMany = jest.fn();
 const mockPostUpdateMany = jest.fn();
+const mockPostInsertMany = jest.fn();
 const mockPostSelect = jest.fn();
 const mockPostFind = jest.fn(() => ({ select: mockPostSelect }));
 
@@ -13,7 +14,9 @@ const mockCommentSelect = jest.fn();
 const mockCommentFind = jest.fn(() => ({ select: mockCommentSelect }));
 
 const mockUserFindById = jest.fn();
+const mockUserFindOne = jest.fn();
 const mockUserFindByIdAndDelete = jest.fn();
+const mockUserInsertMany = jest.fn();
 const mockUserDeleteMany = jest.fn();
 const mockUserUpdateMany = jest.fn();
 const mockUserSelect = jest.fn();
@@ -26,6 +29,7 @@ jest.mock("../models/Post", () => ({
     findByIdAndDelete: mockPostFindByIdAndDelete,
     deleteMany: mockPostDeleteMany,
     updateMany: mockPostUpdateMany,
+    insertMany: mockPostInsertMany,
     findByIdAndUpdate: jest.fn(),
   },
 }));
@@ -45,13 +49,28 @@ jest.mock("../models/User", () => ({
   default: {
     find: mockUserFind,
     findById: mockUserFindById,
+    findOne: mockUserFindOne,
     findByIdAndDelete: mockUserFindByIdAndDelete,
+    insertMany: mockUserInsertMany,
     deleteMany: mockUserDeleteMany,
     updateMany: mockUserUpdateMany,
   },
 }));
 
+const mockHash = jest.fn().mockResolvedValue("hashed-password");
+jest.mock("bcryptjs", () => ({
+  __esModule: true,
+  default: { hash: mockHash },
+}));
+
+const mockUploadImage = jest.fn().mockResolvedValue("uploaded-image");
+jest.mock("../utils/uploadImage", () => ({
+  uploadImageToCloudinary: mockUploadImage,
+}));
+
 import {
+  bulkCreateAdminPostsService,
+  bulkCreateAdminUsersService,
   bulkDeleteAdminPostsService,
   bulkDeleteAdminUsersService,
   deleteAdminPostService,
@@ -166,5 +185,90 @@ describe("admin destructive actions", () => {
     );
     expect(mockUserDeleteMany).not.toHaveBeenCalled();
     expect(mockPostFind).not.toHaveBeenCalled();
+  });
+
+  it("bulk-creates users with hashed passwords and excludes passwords from the result", async () => {
+    const userId = new mongoose.Types.ObjectId();
+    const returnedUsers = [{ _id: userId, email: "first@example.com" }];
+    mockUserFindOne.mockResolvedValue(null);
+    mockUserInsertMany.mockResolvedValue([{ _id: userId }]);
+    mockUserSelect.mockResolvedValue(returnedUsers);
+
+    const result = await bulkCreateAdminUsersService([
+      { name: "First", email: "FIRST@EXAMPLE.COM", password: "password" },
+    ]);
+
+    expect(mockHash).toHaveBeenCalledWith("password", 10);
+    expect(mockUserInsertMany).toHaveBeenCalledWith([
+      expect.objectContaining({
+        name: "First",
+        email: "first@example.com",
+        password: "hashed-password",
+      }),
+    ]);
+    expect(mockUserSelect).toHaveBeenCalledWith(
+      "-password -otp -otpExpires -twoFASecret -resetToken -resetTokenExpiry"
+    );
+    expect(result).toBe(returnedUsers);
+  });
+
+  it("rejects duplicate emails within a bulk user creation request", async () => {
+    await expect(
+      bulkCreateAdminUsersService([
+        { name: "One", email: "same@example.com", password: "password" },
+        { name: "Two", email: "SAME@example.com", password: "password" },
+      ])
+    ).rejects.toThrow("Email already in use");
+
+    expect(mockUserFindOne).not.toHaveBeenCalled();
+    expect(mockUserInsertMany).not.toHaveBeenCalled();
+  });
+
+  it("bulk-creates posts for active authors with uploaded images and normalized tags", async () => {
+    const authorId = new mongoose.Types.ObjectId();
+    const createdPosts = [{ _id: new mongoose.Types.ObjectId() }];
+    mockUserSelect.mockResolvedValue([{ _id: authorId }]);
+    mockPostInsertMany.mockResolvedValue(createdPosts);
+
+    const result = await bulkCreateAdminPostsService([
+      {
+        author: authorId.toString(),
+        title: "First post",
+        content: "Content",
+        image: "base64-image",
+        category: "Tech",
+        tags: [" TypeScript ", "typescript", " API "],
+        visibility: "public",
+      },
+    ]);
+
+    expect(mockUploadImage).toHaveBeenCalledWith("base64-image", "post_images");
+    expect(mockPostInsertMany).toHaveBeenCalledWith([
+      expect.objectContaining({
+        author: authorId,
+        image: "uploaded-image",
+        tags: ["typescript", "api"],
+      }),
+    ]);
+    expect(result).toBe(createdPosts);
+  });
+
+  it("does not upload or create bulk posts when an author is missing", async () => {
+    mockUserSelect.mockResolvedValue([]);
+
+    await expect(
+      bulkCreateAdminPostsService([
+        {
+          author: new mongoose.Types.ObjectId().toString(),
+          title: "Post",
+          content: "Content",
+          image: "base64-image",
+          category: "Tech",
+        },
+      ])
+    ).rejects.toThrow("One or more post authors not found");
+
+    expect(mockUploadImage).not.toHaveBeenCalled();
+    expect(mockPostInsertMany).not.toHaveBeenCalled();
   });
 });
