@@ -1,0 +1,31 @@
+services:
+  api:
+    build:
+      context: .
+    ports:
+      - "${PORT:-4300}:${PORT:-4300}"
+    env_file:
+      - .env
+    environment:
+      MONGO_URI: "${DOCKER_MONGO_URI:-mongodb://mongo:27017/interesthub}"
+      NODE_ENV: "${NODE_ENV:-development}"
+      PORT: "${PORT:-4300}"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:8
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
