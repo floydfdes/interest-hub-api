@@ -489,7 +489,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Paginated chronological feed excluding blocked, muted, and hidden content"
+                        "description": "Paginated public and followers-only posts from followed users, excluding muted, hidden, and archived content"
                     },
                     "401": {
                         "description": "Unauthorized"
@@ -631,6 +631,21 @@
                 }
             }
         },
+        "/api/posts/archived": {
+            "get": {
+                "tags": ["Posts"],
+                "summary": "Get the authenticated user's archived posts",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+                    { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 } }
+                ],
+                "responses": {
+                    "200": { "description": "Paginated archived posts owned by the signed-in user" },
+                    "401": { "description": "Unauthorized" }
+                }
+            }
+        },
         "/api/posts/{id}": {
             "get": {
                 "tags": [
@@ -649,7 +664,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Post found"
+                        "description": "Visible post found; private posts require the owner and followers-only posts require owner or follower access"
                     },
                     "404": {
                         "description": "Post not found"
@@ -757,6 +772,36 @@
                     "404": {
                         "description": "Post not found"
                     }
+                }
+            }
+        },
+        "/api/posts/{id}/archive": {
+            "patch": {
+                "tags": ["Posts"],
+                "summary": "Archive a post owned by the authenticated user",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+                ],
+                "responses": {
+                    "200": { "description": "Post archived" },
+                    "403": { "description": "Not the post owner" },
+                    "404": { "description": "Post not found" }
+                }
+            }
+        },
+        "/api/posts/{id}/unarchive": {
+            "patch": {
+                "tags": ["Posts"],
+                "summary": "Restore an archived post owned by the authenticated user",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+                ],
+                "responses": {
+                    "200": { "description": "Post unarchived" },
+                    "403": { "description": "Not the post owner" },
+                    "404": { "description": "Post not found" }
                 }
             }
         },
@@ -1104,6 +1149,19 @@
                 }
             }
         },
+        "/api/users/profile/{id}": {
+            "get": {
+                "tags": ["Users"],
+                "summary": "Get a public profile or restricted private-profile summary",
+                "parameters": [
+                    { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+                ],
+                "responses": {
+                    "200": { "description": "Profile returned; canViewProfile is false when a private profile is not accessible" },
+                    "404": { "description": "User not found" }
+                }
+            }
+        },
         "/api/users/update": {
             "patch": {
                 "tags": [
@@ -1136,6 +1194,10 @@
                                         "items": {
                                             "type": "string"
                                         }
+                                    },
+                                    "isPrivate": {
+                                        "type": "boolean",
+                                        "description": "When true, new followers require approval and profile details/lists are restricted"
                                     }
                                 }
                             }
@@ -1178,7 +1240,7 @@
                 "tags": [
                     "Users"
                 ],
-                "summary": "Follow another user",
+                "summary": "Follow a public user or request to follow a private user",
                 "security": [
                     {
                         "bearerAuth": []
@@ -1196,7 +1258,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Followed user"
+                        "description": "Followed user or follow request submitted; response status is followed, existing, or requested"
                     },
                     "400": {
                         "description": "Cannot follow yourself"
@@ -1238,6 +1300,49 @@
                     "401": {
                         "description": "Unauthorized"
                     }
+                }
+            }
+        },
+        "/api/users/follow-requests": {
+            "get": {
+                "tags": ["Users"],
+                "summary": "Get pending follow requests for the authenticated user",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+                    { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 } }
+                ],
+                "responses": {
+                    "200": { "description": "Paginated pending follow requests" },
+                    "401": { "description": "Unauthorized" }
+                }
+            }
+        },
+        "/api/users/follow-requests/{requesterId}/accept": {
+            "post": {
+                "tags": ["Users"],
+                "summary": "Accept a pending follow request",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    { "name": "requesterId", "in": "path", "required": true, "schema": { "type": "string" } }
+                ],
+                "responses": {
+                    "200": { "description": "Follow request accepted" },
+                    "404": { "description": "Follow request or user not found" }
+                }
+            }
+        },
+        "/api/users/follow-requests/{requesterId}/reject": {
+            "post": {
+                "tags": ["Users"],
+                "summary": "Reject a pending follow request",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    { "name": "requesterId", "in": "path", "required": true, "schema": { "type": "string" } }
+                ],
+                "responses": {
+                    "200": { "description": "Follow request rejected" },
+                    "404": { "description": "Follow request or user not found" }
                 }
             }
         },
@@ -1505,6 +1610,9 @@
                 "responses": {
                     "200": {
                         "description": "Paginated followers returned as items and pagination metadata"
+                    },
+                    "403": {
+                        "description": "Private profile is not accessible to this viewer"
                     }
                 }
             }
@@ -1547,6 +1655,9 @@
                 "responses": {
                     "200": {
                         "description": "Paginated following users returned as items and pagination metadata"
+                    },
+                    "403": {
+                        "description": "Private profile is not accessible to this viewer"
                     }
                 }
             }
@@ -1556,7 +1667,7 @@
                 "tags": [
                     "Users"
                 ],
-                "summary": "Search users by name or interest",
+                "summary": "Search users by name or public-profile interest",
                 "parameters": [
                     {
                         "name": "query",
@@ -1564,7 +1675,16 @@
                         "required": true,
                         "schema": {
                             "type": "string"
-                        }
+                        },
+                        "description": "Search text; q is also supported for frontend compatibility"
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Alias for query"
                     }
                 ],
                 "responses": {
@@ -2152,7 +2272,8 @@
                                     "role": { "type": "string", "enum": ["user", "admin"] },
                                     "bio": { "type": "string" },
                                     "interests": { "type": "array", "items": { "type": "string" } },
-                                    "isBlocked": { "type": "boolean" }
+                                    "isBlocked": { "type": "boolean" },
+                                    "isPrivate": { "type": "boolean" }
                                 }
                             }
                         }
@@ -2191,7 +2312,8 @@
                                                 "profilePic": { "type": "string", "nullable": true },
                                                 "bio": { "type": "string", "maxLength": 160 },
                                                 "interests": { "type": "array", "items": { "type": "string" } },
-                                                "isBlocked": { "type": "boolean" }
+                                                "isBlocked": { "type": "boolean" },
+                                                "isPrivate": { "type": "boolean" }
                                             }
                                         }
                                     }

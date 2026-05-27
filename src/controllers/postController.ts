@@ -1,11 +1,13 @@
 import { Request, Response } from "express";
 import {
   advancedSearchPostsService,
+  archivePostService,
   bookmarkPostService,
   createPostService,
   deletePostService,
   getBookmarkedPostsService,
   getAllPostsService,
+  getArchivedPostsService,
   getFollowingFeedService,
   getHiddenPostsService,
   getPostByIdService,
@@ -229,6 +231,15 @@ export const getHiddenPosts = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const getArchivedPosts = async (req: AuthRequest, res: Response) => {
+  try {
+    res.status(200).json(await getArchivedPostsService(req.userId!, getPagination(req.query)));
+  } catch (error) {
+    logError("Failed to fetch archived posts", error, { userId: req.userId });
+    res.status(500).json({ message: "Failed to fetch archived posts" });
+  }
+};
+
 export const hidePost = async (req: AuthRequest, res: Response) => {
   try {
     const result = await hidePostService(req.params.id, req.userId!);
@@ -275,9 +286,45 @@ export const unhidePost = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getPostById = async (req: Request, res: Response) => {
+export const archivePost = async (req: AuthRequest, res: Response) => {
   try {
-    const post = await getPostByIdService(req.params.id);
+    const post = await archivePostService(req.params.id, req.userId!, true);
+    if (post === null) {
+      res.status(404).json({ message: "Post not found" });
+      return;
+    }
+    if (post === false) {
+      res.status(403).json({ message: "Unauthorized" });
+      return;
+    }
+    res.status(200).json({ message: "Post archived", post });
+  } catch (error) {
+    logError("Failed to archive post", error, { postId: req.params.id, userId: req.userId });
+    res.status(500).json({ message: "Failed to archive post" });
+  }
+};
+
+export const unarchivePost = async (req: AuthRequest, res: Response) => {
+  try {
+    const post = await archivePostService(req.params.id, req.userId!, false);
+    if (post === null) {
+      res.status(404).json({ message: "Post not found" });
+      return;
+    }
+    if (post === false) {
+      res.status(403).json({ message: "Unauthorized" });
+      return;
+    }
+    res.status(200).json({ message: "Post unarchived", post });
+  } catch (error) {
+    logError("Failed to unarchive post", error, { postId: req.params.id, userId: req.userId });
+    res.status(500).json({ message: "Failed to unarchive post" });
+  }
+};
+
+export const getPostById = async (req: AuthRequest, res: Response) => {
+  try {
+    const post = await getPostByIdService(req.params.id, req.userId);
 
     if (!post) {
       res.status(404).json({ message: "Post not found" });

@@ -17,6 +17,7 @@ export interface AdminUserInput {
   bio?: string;
   interests?: string[];
   isBlocked?: boolean;
+  isPrivate?: boolean;
 }
 
 export type AdminUserUpdate = Partial<AdminUserInput>;
@@ -132,6 +133,7 @@ export const createAdminUserService = async (input: AdminUserInput) => {
     bio: input.bio,
     interests: input.interests,
     isBlocked: input.isBlocked,
+    isPrivate: input.isPrivate,
   });
 
   return User.findById(user._id).select(safeUserFields);
@@ -155,6 +157,7 @@ export const bulkCreateAdminUsersService = async (inputs: AdminUserInput[]) => {
       bio: input.bio,
       interests: input.interests,
       isBlocked: input.isBlocked,
+      isPrivate: input.isPrivate,
     }))
   );
 
@@ -189,6 +192,7 @@ export const updateAdminUserService = async (
   if (input.bio !== undefined) user.bio = input.bio;
   if (input.interests !== undefined) user.interests = input.interests;
   if (input.isBlocked !== undefined) user.isBlocked = input.isBlocked;
+  if (input.isPrivate !== undefined) user.isPrivate = input.isPrivate;
   if (input.password) {
     user.password = await bcrypt.hash(input.password, 10);
   }
@@ -239,6 +243,7 @@ export const deleteAdminUserService = async (id: string, actorId: string) => {
         $pull: {
           followers: user._id,
           following: user._id,
+          followRequests: user._id,
           blockedUsers: user._id,
           mutedUsers: user._id,
           savedPosts: { $in: postIds },
@@ -295,6 +300,7 @@ export const bulkDeleteAdminUsersService = async (ids: string[], actorId: string
         $pull: {
           followers: { $in: userIds },
           following: { $in: userIds },
+          followRequests: { $in: userIds },
           blockedUsers: { $in: userIds },
           mutedUsers: { $in: userIds },
           savedPosts: { $in: postIds },

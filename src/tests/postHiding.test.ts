@@ -8,6 +8,7 @@ const mockPostSkip = jest.fn(() => ({ limit: mockPostLimit }));
 const mockPostSort = jest.fn(() => ({ skip: mockPostSkip }));
 const mockPostFind = jest.fn(() => ({ sort: mockPostSort }));
 const mockPostCountDocuments = jest.fn().mockResolvedValue(1);
+const mockPostFindById = jest.fn();
 
 const mockUserSelect = jest.fn();
 const mockUserFindOne = jest.fn(() => ({ select: mockUserSelect }));
@@ -18,6 +19,7 @@ jest.mock("../models/Post", () => ({
     findOne: mockPostFindOne,
     find: mockPostFind,
     countDocuments: mockPostCountDocuments,
+    findById: mockPostFindById,
   },
 }));
 
@@ -37,7 +39,13 @@ jest.mock("../utils/uploadImage", () => ({
   uploadImageToCloudinary: jest.fn(),
 }));
 
-import { getHiddenPostsService, hidePostService, unhidePostService } from "../services/postService";
+import {
+  archivePostService,
+  getArchivedPostsService,
+  getHiddenPostsService,
+  hidePostService,
+  unhidePostService,
+} from "../services/postService";
 
 const userId = "507f1f77bcf86cd799439011";
 const postId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439012");
@@ -75,7 +83,50 @@ describe("personal post hiding", () => {
     expect(mockPostFind).toHaveBeenCalledWith({
       _id: { $in: [postId] },
       visibility: "public",
+      isArchived: { $ne: true },
     });
     expect(result?.pagination.total).toBe(1);
+  });
+});
+
+describe("post archiving", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("archives a post owned by the signed-in user", async () => {
+    const post = {
+      author: new mongoose.Types.ObjectId(userId),
+      isArchived: false,
+      archivedAt: null as Date | null,
+      save: jest.fn(),
+    };
+    mockPostFindById.mockResolvedValueOnce(post);
+
+    await expect(archivePostService(postId.toString(), userId, true)).resolves.toBe(post);
+    expect(post.isArchived).toBe(true);
+    expect(post.archivedAt).toEqual(expect.any(Date));
+    expect(post.save).toHaveBeenCalled();
+  });
+
+  it("unarchives an owned post", async () => {
+    const post = {
+      author: new mongoose.Types.ObjectId(userId),
+      isArchived: true,
+      archivedAt: new Date(),
+      save: jest.fn(),
+    };
+    mockPostFindById.mockResolvedValueOnce(post);
+
+    await archivePostService(postId.toString(), userId, false);
+    expect(post.isArchived).toBe(false);
+    expect(post.archivedAt).toBeNull();
+  });
+
+  it("returns only the owner's archived posts with pagination", async () => {
+    await getArchivedPostsService(userId, { page: 1, limit: 20, skip: 0 });
+
+    expect(mockPostFind).toHaveBeenCalledWith({ author: userId, isArchived: true });
+    expect(mockPostSort).toHaveBeenCalledWith({ archivedAt: -1 });
   });
 });

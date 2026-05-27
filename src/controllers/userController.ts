@@ -1,9 +1,11 @@
 import { Request, Response } from "express";
 import {
+  acceptFollowRequest,
   blockUser,
   deleteUserAccount,
   followUser,
   getBlockedUsers,
+  getFollowRequests,
   getFollowers,
   getFollowing,
   getMutedUsers,
@@ -11,6 +13,7 @@ import {
   getUserById,
   searchUsers,
   muteUser,
+  rejectFollowRequest,
   unmuteUser,
   unblockUser,
   unfollowUser,
@@ -40,7 +43,7 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
   }
 
   const user = await User.findOne({ _id: req.userId, isDeleted: false }).select(
-    "name email role profilePic bio interests followers following blockedUsers mutedUsers hiddenPosts createdAt updatedAt"
+    "name email role profilePic bio interests isPrivate followers following followRequests blockedUsers mutedUsers hiddenPosts createdAt updatedAt"
   );
 
   if (!user) {
@@ -54,6 +57,7 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
 const userActionErrorStatus = (error: unknown): number => {
   const message = error instanceof Error ? error.message : "";
   if (message === "User not found") return 404;
+  if (message === "Follow request not found") return 404;
   if (message.startsWith("Cannot ")) return 400;
   if (message === "You cannot follow this user") return 403;
   return 500;
@@ -79,10 +83,10 @@ export const activities = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
-export const getProfile = async (req: Request, res: Response) => {
+export const getProfile = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const profile = await getUserById(id);
+    const profile = await getUserById(id, req.userId);
     if (!profile) {
       res.status(404).json({ message: "User not found" });
       return;
@@ -117,8 +121,8 @@ export const deleteAccount = async (req: AuthRequest, res: Response) => {
 export const follow = async (req: AuthRequest, res: Response) => {
   try {
     const { targetUserId } = req.params;
-    const didFollow = await followUser(req.userId!, targetUserId);
-    if (didFollow) {
+    const result = await followUser(req.userId!, targetUserId);
+    if (result === "followed") {
       await recordActivity({
         actorId: req.userId!,
         type: "user_followed",
@@ -126,7 +130,10 @@ export const follow = async (req: AuthRequest, res: Response) => {
         ...getActivityRequestContext(req),
       });
     }
-    res.status(200).json({ message: "Followed successfully" });
+    res.status(200).json({
+      message: result === "requested" ? "Follow request sent" : "Followed successfully",
+      status: result,
+    });
   } catch (error) {
     logError("Failed to follow user", error, {
       userId: req.userId,
@@ -152,12 +159,16 @@ export const unfollow = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const followers = async (req: Request, res: Response) => {
+export const followers = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const list = await getFollowers(id, getPagination(req.query));
-    if (!list) {
+    const list = await getFollowers(id, getPagination(req.query), req.userId);
+    if (list === null) {
       res.status(404).json({ message: "User not found" });
+      return;
+    }
+    if (list === false) {
+      res.status(403).json({ message: "This profile is private" });
       return;
     }
     res.status(200).json(list);
@@ -167,12 +178,16 @@ export const followers = async (req: Request, res: Response) => {
   }
 };
 
-export const following = async (req: Request, res: Response) => {
+export const following = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const list = await getFollowing(id, getPagination(req.query));
-    if (!list) {
+    const list = await getFollowing(id, getPagination(req.query), req.userId);
+    if (list === null) {
       res.status(404).json({ message: "User not found" });
+      return;
+    }
+    if (list === false) {
+      res.status(403).json({ message: "This profile is private" });
       return;
     }
     res.status(200).json(list);
@@ -207,6 +222,48 @@ export const muted = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     logError("Failed to fetch muted users", error, { userId: req.userId });
     res.status(500).json({ message: "Failed to fetch muted users" });
+  }
+};
+
+export const followRequests = async (req: AuthRequest, res: Response) => {
+  try {
+    const list = await getFollowRequests(req.userId!, getPagination(req.query));
+    if (!list) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+    res.status(200).json(list);
+  } catch (error) {
+    logError("Failed to fetch follow requests", error, { userId: req.userId });
+    res.status(500).json({ message: "Failed to fetch follow requests" });
+  }
+};
+
+export const acceptRequest = async (req: AuthRequest, res: Response) => {
+  try {
+    await acceptFollowRequest(req.userId!, req.params.requesterId);
+    await recordActivity({
+      actorId: req.params.requesterId,
+      type: "user_followed",
+      targetUserId: req.userId!,
+      ...getActivityRequestContext(req),
+    });
+    res.status(200).json({ message: "Follow request accepted" });
+  } catch (error) {
+    res.status(userActionErrorStatus(error)).json({
+      message: error instanceof Error ? error.message : "Failed to accept follow request",
+    });
+  }
+};
+
+export const rejectRequest = async (req: AuthRequest, res: Response) => {
+  try {
+    await rejectFollowRequest(req.userId!, req.params.requesterId);
+    res.status(200).json({ message: "Follow request rejected" });
+  } catch (error) {
+    res.status(userActionErrorStatus(error)).json({
+      message: error instanceof Error ? error.message : "Failed to reject follow request",
+    });
   }
 };
 
@@ -307,7 +364,7 @@ export const unmute = async (req: AuthRequest, res: Response) => {
 
 export const search = async (req: Request, res: Response) => {
   try {
-    const { query } = req.query;
+    const query = typeof req.query.query === "string" ? req.query.query : req.query.q;
     if (typeof query !== "string" || query.trim().length < 2) {
       res.status(400).json({ message: "Search query must contain at least 2 characters" });
       return;

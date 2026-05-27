@@ -25,5 +25,29 @@ const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction): vo
   }
 };
 
+export const optionalAuthMiddleware = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): void => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    next();
+    return;
+  }
+  if (!authHeader.startsWith("Bearer ")) {
+    res.status(401).json({ message: "Authorization header invalid" });
+    return;
+  }
+
+  try {
+    const decoded = verifyToken(authHeader.split(" ")[1], "access");
+    req.userId = decoded.userId;
+    next();
+  } catch {
+    res.status(401).json({ message: "Invalid or expired token" });
+  }
+};
+
 export default authMiddleware;
 export type { AuthRequest };

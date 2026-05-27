@@ -14,10 +14,13 @@ jest.mock("../utils/uploadImage", () => ({
 }));
 
 import {
+  acceptFollowRequest,
   blockUser,
   followUser,
   getBlockedUsers,
+  getFollowers,
   getMutedUsers,
+  getUserById,
   muteUser,
   unblockUser,
   unmuteUser,
@@ -30,8 +33,10 @@ const createUser = (id: mongoose.Types.ObjectId) => ({
   _id: id,
   followers: [] as mongoose.Types.ObjectId[],
   following: [] as mongoose.Types.ObjectId[],
+  followRequests: [] as mongoose.Types.ObjectId[],
   blockedUsers: [] as mongoose.Types.ObjectId[],
   mutedUsers: [] as mongoose.Types.ObjectId[],
+  isPrivate: false,
   save: jest.fn().mockResolvedValue(undefined),
 });
 
@@ -166,5 +171,66 @@ describe("personal user blocking", () => {
       options: { skip: 0, limit: 20 },
     });
     expect(result?.pagination.total).toBe(1);
+  });
+});
+
+describe("private profiles", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("turns a follow into a request for a private profile", async () => {
+    const user = createUser(userId);
+    const target = createUser(targetId);
+    target.isPrivate = true;
+    mockUserFindOne.mockResolvedValueOnce(user).mockResolvedValueOnce(target);
+
+    await expect(followUser(userId.toString(), targetId.toString())).resolves.toBe("requested");
+    expect(target.followRequests).toEqual([userId]);
+    expect(target.followers).toEqual([]);
+    expect(user.following).toEqual([]);
+  });
+
+  it("accepts a pending follow request", async () => {
+    const target = createUser(targetId);
+    const requester = createUser(userId);
+    target.followRequests = [userId];
+    mockUserFindOne.mockResolvedValueOnce(target).mockResolvedValueOnce(requester);
+
+    await acceptFollowRequest(targetId.toString(), userId.toString());
+    expect(target.followRequests).toEqual([]);
+    expect(target.followers).toEqual([userId]);
+    expect(requester.following).toEqual([targetId]);
+  });
+
+  it("returns a restricted private profile to an unapproved viewer", async () => {
+    const target = {
+      ...createUser(targetId),
+      name: "Private User",
+      profilePic: null,
+      bio: "secret",
+      interests: ["private-interest"],
+      isPrivate: true,
+    };
+    const select = jest.fn().mockResolvedValue(target);
+    mockUserFindOne.mockReturnValueOnce({ select });
+
+    const profile = await getUserById(targetId.toString(), userId.toString());
+    expect(profile).toEqual(
+      expect.objectContaining({ isPrivate: true, canViewProfile: false, name: "Private User" })
+    );
+    expect(profile).not.toHaveProperty("bio");
+    expect(profile).not.toHaveProperty("interests");
+  });
+
+  it("does not expose a private profile follower list to a stranger", async () => {
+    const target = { ...createUser(targetId), isPrivate: true, populate: jest.fn() };
+    const select = jest.fn().mockResolvedValue(target);
+    mockUserFindOne.mockReturnValueOnce({ select });
+
+    await expect(
+      getFollowers(targetId.toString(), { page: 1, limit: 20, skip: 0 }, userId.toString())
+    ).resolves.toBe(false);
+    expect(target.populate).not.toHaveBeenCalled();
   });
 });

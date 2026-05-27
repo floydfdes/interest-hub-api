@@ -2,20 +2,45 @@ import User from "../models/User";
 import { uploadImageToCloudinary } from "../utils/uploadImage";
 import { paginatedResponse, PaginationParams } from "../utils/pagination";
 
-export const getUserById = async (id: string) => {
+const includesUser = (ids: { equals: (id: string) => boolean }[] = [], userId?: string) =>
+  Boolean(userId && ids.some((id) => id.equals(userId)));
+
+const canViewPrivateAccount = (
+  user: {
+    _id: { toString: () => string };
+    isPrivate?: boolean;
+    followers: { equals: (id: string) => boolean }[];
+  },
+  viewerId?: string
+) => !user.isPrivate || user._id.toString() === viewerId || includesUser(user.followers, viewerId);
+
+export const getUserById = async (id: string, viewerId?: string) => {
   const user = await User.findOne({ _id: id, isDeleted: false }).select(
-    "name profilePic bio interests followers following"
+    "name profilePic bio interests followers following followRequests isPrivate"
   );
   if (!user) return null;
 
-  return {
+  const isFollowing = includesUser(user.followers, viewerId);
+  const hasRequestedFollow = includesUser(user.followRequests, viewerId);
+  const baseProfile = {
     _id: user._id,
     name: user.name,
     profilePic: user.profilePic || null,
-    bio: user.bio,
-    interests: user.interests,
+    isPrivate: user.isPrivate,
+    isFollowing,
+    hasRequestedFollow,
     followersCount: user.followers.length,
     followingCount: user.following.length,
+  };
+  if (!canViewPrivateAccount(user, viewerId)) {
+    return { ...baseProfile, canViewProfile: false };
+  }
+
+  return {
+    ...baseProfile,
+    canViewProfile: true,
+    bio: user.bio,
+    interests: user.interests,
   };
 };
 
@@ -26,6 +51,7 @@ export const updateUserProfile = async (
     bio: string;
     interests: string[];
     profilePic: string;
+    isPrivate: boolean;
   }>
 ) => {
   const user = await User.findOne({ _id: userId, isDeleted: false });
@@ -35,6 +61,7 @@ export const updateUserProfile = async (
     ...(typeof updates.name === "string" && { name: updates.name }),
     ...(typeof updates.bio === "string" && { bio: updates.bio }),
     ...(Array.isArray(updates.interests) && { interests: updates.interests }),
+    ...(typeof updates.isPrivate === "boolean" && { isPrivate: updates.isPrivate }),
   };
 
   if (updates.profilePic) {
@@ -45,7 +72,7 @@ export const updateUserProfile = async (
   Object.assign(user, allowedUpdates);
   await user.save();
 
-  return getUserById(userId);
+  return getUserById(userId, userId);
 };
 
 export const deleteUserAccount = async (userId: string) => {
@@ -68,11 +95,20 @@ export const followUser = async (userId: string, targetUserId: string) => {
   }
 
   const isAlreadyFollowing = target.followers.some((id) => id.equals(user._id));
+  if (isAlreadyFollowing) return "existing";
 
-  if (!isAlreadyFollowing) {
-    target.followers.push(user._id);
-    await target.save();
+  if (target.isPrivate) {
+    target.followRequests ??= [];
+    const isAlreadyRequested = target.followRequests.some((id) => id.equals(user._id));
+    if (!isAlreadyRequested) {
+      target.followRequests.push(user._id);
+      await target.save();
+    }
+    return "requested";
   }
+
+  target.followers.push(user._id);
+  await target.save();
 
   const isAlreadyInFollowing = user.following.some((id) => id.equals(target._id));
 
@@ -81,7 +117,7 @@ export const followUser = async (userId: string, targetUserId: string) => {
     await user.save();
   }
 
-  return !isAlreadyFollowing;
+  return "followed";
 };
 
 export const unfollowUser = async (userId: string, targetUserId: string) => {
@@ -93,6 +129,7 @@ export const unfollowUser = async (userId: string, targetUserId: string) => {
   user.following = user.following.filter((id) => !id.equals(target._id));
 
   target.followers = target.followers.filter((id) => !id.equals(user._id));
+  target.followRequests = (target.followRequests ?? []).filter((id) => !id.equals(user._id));
 
   await user.save();
   await target.save();
@@ -100,9 +137,14 @@ export const unfollowUser = async (userId: string, targetUserId: string) => {
   return true;
 };
 
-export const getFollowers = async (userId: string, pagination: PaginationParams) => {
-  const user = await User.findOne({ _id: userId, isDeleted: false }).select("followers");
+export const getFollowers = async (
+  userId: string,
+  pagination: PaginationParams,
+  viewerId?: string
+) => {
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select("followers isPrivate");
   if (!user) return null;
+  if (!canViewPrivateAccount(user, viewerId)) return false;
 
   const total = user.followers.length;
   await user.populate({
@@ -114,9 +156,16 @@ export const getFollowers = async (userId: string, pagination: PaginationParams)
   return paginatedResponse(user.followers, total, pagination);
 };
 
-export const getFollowing = async (userId: string, pagination: PaginationParams) => {
-  const user = await User.findOne({ _id: userId, isDeleted: false }).select("following");
+export const getFollowing = async (
+  userId: string,
+  pagination: PaginationParams,
+  viewerId?: string
+) => {
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select(
+    "following followers isPrivate"
+  );
   if (!user) return null;
+  if (!canViewPrivateAccount(user, viewerId)) return false;
 
   const total = user.following.length;
   await user.populate({
@@ -156,6 +205,44 @@ export const getMutedUsers = async (userId: string, pagination: PaginationParams
   return paginatedResponse(user.mutedUsers, total, pagination);
 };
 
+export const getFollowRequests = async (userId: string, pagination: PaginationParams) => {
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select("followRequests");
+  if (!user) return null;
+
+  const total = user.followRequests.length;
+  await user.populate({
+    path: "followRequests",
+    select: "name profilePic bio",
+    options: { skip: pagination.skip, limit: pagination.limit },
+  });
+  return paginatedResponse(user.followRequests, total, pagination);
+};
+
+export const acceptFollowRequest = async (userId: string, requesterId: string) => {
+  const user = await User.findOne({ _id: userId, isDeleted: false });
+  const requester = await User.findOne({ _id: requesterId, isDeleted: false });
+  if (!user || !requester) throw new Error("User not found");
+  const hasRequest = (user.followRequests ?? []).some((id) => id.equals(requester._id));
+  if (!hasRequest) throw new Error("Follow request not found");
+
+  user.followRequests = user.followRequests.filter((id) => !id.equals(requester._id));
+  if (!user.followers.some((id) => id.equals(requester._id))) user.followers.push(requester._id);
+  if (!requester.following.some((id) => id.equals(user._id))) requester.following.push(user._id);
+  await user.save();
+  await requester.save();
+  return true;
+};
+
+export const rejectFollowRequest = async (userId: string, requesterId: string) => {
+  const user = await User.findOne({ _id: userId, isDeleted: false });
+  if (!user) throw new Error("User not found");
+  const hadRequest = (user.followRequests ?? []).some((id) => id.equals(requesterId));
+  if (!hadRequest) throw new Error("Follow request not found");
+  user.followRequests = user.followRequests.filter((id) => !id.equals(requesterId));
+  await user.save();
+  return true;
+};
+
 export const blockUser = async (userId: string, targetUserId: string) => {
   if (userId === targetUserId) throw new Error("Cannot block yourself");
 
@@ -172,8 +259,10 @@ export const blockUser = async (userId: string, targetUserId: string) => {
 
   user.following = user.following.filter((id) => !id.equals(target._id));
   user.followers = user.followers.filter((id) => !id.equals(target._id));
+  user.followRequests = (user.followRequests ?? []).filter((id) => !id.equals(target._id));
   target.following = target.following.filter((id) => !id.equals(user._id));
   target.followers = target.followers.filter((id) => !id.equals(user._id));
+  target.followRequests = (target.followRequests ?? []).filter((id) => !id.equals(user._id));
 
   await user.save();
   await target.save();
@@ -236,10 +325,19 @@ export const searchUsers = async (query: string) => {
   const regex = new RegExp(escapedQuery, "i");
   const users = await User.find({
     isDeleted: false,
-    $or: [{ name: regex }, { interests: regex }],
-  }).select("name profilePic bio interests following followers createdAt");
+    $or: [{ name: regex }, { interests: regex, isPrivate: { $ne: true } }],
+  }).select("name profilePic bio interests following followers isPrivate createdAt");
 
-  return users;
+  return users.map((user) =>
+    user.isPrivate
+      ? {
+          _id: user._id,
+          name: user.name,
+          profilePic: user.profilePic || null,
+          isPrivate: true,
+        }
+      : user
+  );
 };
 
 export const getSuggestedUsers = async (userId: string, limit: number) => {
@@ -291,8 +389,9 @@ export const getSuggestedUsers = async (userId: string, limit: number) => {
       $project: {
         name: 1,
         profilePic: 1,
-        bio: 1,
-        interests: 1,
+        bio: { $cond: ["$isPrivate", "$$REMOVE", "$bio"] },
+        interests: { $cond: ["$isPrivate", "$$REMOVE", "$interests"] },
+        isPrivate: 1,
         followersCount: 1,
         matchingInterests: 1,
       },

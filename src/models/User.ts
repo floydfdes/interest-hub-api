@@ -10,6 +10,7 @@ export interface IUser extends Document {
   interests: string[];
   followers: Types.ObjectId[];
   following: Types.ObjectId[];
+  followRequests: Types.ObjectId[];
   blockedUsers: Types.ObjectId[];
   mutedUsers: Types.ObjectId[];
   savedPosts: Types.ObjectId[];
@@ -21,6 +22,7 @@ export interface IUser extends Document {
   resetToken: string | null;
   resetTokenExpiry: Date | null;
   isBlocked: boolean;
+  isPrivate: boolean;
   warnings: {
     reason: string;
     date: Date;
@@ -43,6 +45,7 @@ const UserSchema = new Schema<IUser>(
     interests: { type: [String], default: [] },
     followers: [{ type: Schema.Types.ObjectId, ref: "User" }],
     following: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    followRequests: [{ type: Schema.Types.ObjectId, ref: "User" }],
     blockedUsers: [{ type: Schema.Types.ObjectId, ref: "User" }],
     mutedUsers: [{ type: Schema.Types.ObjectId, ref: "User" }],
     savedPosts: [{ type: Schema.Types.ObjectId, ref: "Post" }],
@@ -54,6 +57,7 @@ const UserSchema = new Schema<IUser>(
     resetToken: { type: String, default: null },
     resetTokenExpiry: { type: Date, default: null },
     isBlocked: { type: Boolean, default: false },
+    isPrivate: { type: Boolean, default: false },
     warnings: [
       {
         reason: String,

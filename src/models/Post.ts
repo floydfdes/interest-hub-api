@@ -15,6 +15,8 @@ export interface IPost extends Document {
   viewCount: number;
   sharedFrom?: mongoose.Types.ObjectId;
   isEdited: boolean;
+  isArchived: boolean;
+  archivedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,6 +42,8 @@ const PostSchema = new Schema<IPost>(
     viewCount: { type: Number, default: 0 },
     sharedFrom: { type: Schema.Types.ObjectId, ref: "Post", default: null },
     isEdited: { type: Boolean, default: false },
+    isArchived: { type: Boolean, default: false },
+    archivedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

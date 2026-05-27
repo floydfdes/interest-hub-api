@@ -10,6 +10,7 @@ const optionalUserFields = [
   body("interests.*").optional().isString().trim().notEmpty().withMessage("Invalid interest"),
   body("role").optional().isIn(["user", "admin"]).withMessage("Invalid role"),
   body("isBlocked").optional().isBoolean().withMessage("isBlocked must be a boolean"),
+  body("isPrivate").optional().isBoolean().withMessage("isPrivate must be a boolean"),
 ];
 
 export const createAdminUserValidation = [
@@ -55,6 +56,7 @@ export const bulkCreateAdminUsersValidation = [
     .withMessage("Invalid interest"),
   body("users.*.role").optional().isIn(["user", "admin"]).withMessage("Invalid role"),
   body("users.*.isBlocked").optional().isBoolean().withMessage("isBlocked must be a boolean"),
+  body("users.*.isPrivate").optional().isBoolean().withMessage("isPrivate must be a boolean"),
 ];
 
 export const bulkCreateAdminPostsValidation = [
