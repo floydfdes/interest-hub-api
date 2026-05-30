@@ -9,6 +9,7 @@ import {
   getFollowers,
   getFollowing,
   getMutedUsers,
+  getUserPosts,
   getSuggestedUsers,
   getUserById,
   searchUsers,
@@ -96,6 +97,24 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     logError("Failed to fetch user profile", error, { profileId: req.params.id });
     res.status(500).json({ message: "Failed to fetch user profile" });
+  }
+};
+
+export const profilePosts = async (req: AuthRequest, res: Response) => {
+  try {
+    const posts = await getUserPosts(req.params.id, getPagination(req.query), req.userId);
+    if (posts === null) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+    if (posts === false) {
+      res.status(403).json({ message: "This profile is private" });
+      return;
+    }
+    res.status(200).json(posts);
+  } catch (error) {
+    logError("Failed to fetch profile posts", error, { profileId: req.params.id });
+    res.status(500).json({ message: "Failed to fetch profile posts" });
   }
 };
 

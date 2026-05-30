@@ -1,4 +1,4 @@
-import Post from "../models/Post";
+import Post, { Visibility } from "../models/Post";
 import User from "../models/User";
 import { uploadImageToCloudinary } from "../utils/uploadImage";
 import { paginatedResponse, PaginationParams } from "../utils/pagination";
@@ -50,6 +50,39 @@ export const getUserById = async (id: string, viewerId?: string) => {
     bio: user.bio,
     interests: user.interests,
   };
+};
+
+export const getUserPosts = async (
+  userId: string,
+  pagination: PaginationParams,
+  viewerId?: string
+) => {
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select("followers isPrivate");
+  if (!user) return null;
+  if (!canViewPrivateAccount(user, viewerId)) return false;
+
+  const isOwner = user._id.toString() === viewerId;
+  const visibility: Visibility[] = isOwner
+    ? ["public", "followersOnly", "private"]
+    : includesUser(user.followers, viewerId)
+      ? ["public", "followersOnly"]
+      : ["public"];
+  const filter = {
+    author: user._id,
+    visibility: { $in: visibility },
+    isArchived: { $ne: true },
+    isModerationHidden: { $ne: true },
+  };
+  const [posts, total] = await Promise.all([
+    Post.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(pagination.skip)
+      .limit(pagination.limit)
+      .populate("author", "name profilePic"),
+    Post.countDocuments(filter),
+  ]);
+
+  return paginatedResponse(posts, total, pagination);
 };
 
 export const updateUserProfile = async (

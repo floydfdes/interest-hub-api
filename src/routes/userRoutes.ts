@@ -12,6 +12,7 @@ import {
   getProfile,
   mute,
   muted,
+  profilePosts,
   rejectRequest,
   search,
   suggested,
@@ -34,6 +35,7 @@ router.get("/blocked", authMiddleware, blocked);
 router.get("/muted", authMiddleware, muted);
 router.get("/follow-requests", authMiddleware, followRequests);
 router.get("/profile/:id", optionalAuthMiddleware, getProfile);
+router.get("/:id/posts", optionalAuthMiddleware, profilePosts);
 router.patch("/update", authMiddleware, updateProfile);
 router.delete("/delete", authMiddleware, deleteAccount);
 

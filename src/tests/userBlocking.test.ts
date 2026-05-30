@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 const mockUserFindOne = jest.fn();
 const mockPostCountDocuments = jest.fn();
+const mockPostFind = jest.fn();
 
 jest.mock("../models/User", () => ({
   __esModule: true,
@@ -14,6 +15,7 @@ jest.mock("../models/Post", () => ({
   __esModule: true,
   default: {
     countDocuments: mockPostCountDocuments,
+    find: mockPostFind,
   },
 }));
 
@@ -29,6 +31,7 @@ import {
   getFollowers,
   getMutedUsers,
   getUserById,
+  getUserPosts,
   muteUser,
   unblockUser,
   unmuteUser,
@@ -253,6 +256,56 @@ describe("private profiles", () => {
       isArchived: { $ne: true },
       isModerationHidden: { $ne: true },
     });
+  });
+
+  it("returns public posts for an accessible public profile", async () => {
+    const target = { ...createUser(targetId) };
+    const select = jest.fn().mockResolvedValue(target);
+    mockUserFindOne.mockReturnValueOnce({ select });
+    const mockPostPopulate = jest.fn().mockResolvedValue([{ _id: new mongoose.Types.ObjectId() }]);
+    const mockPostLimit = jest.fn(() => ({ populate: mockPostPopulate }));
+    const mockPostSkip = jest.fn(() => ({ limit: mockPostLimit }));
+    const mockPostSort = jest.fn(() => ({ skip: mockPostSkip }));
+    mockPostFind.mockReturnValueOnce({ sort: mockPostSort });
+    mockPostCountDocuments.mockResolvedValueOnce(1);
+
+    const result = await getUserPosts(targetId.toString(), { page: 1, limit: 20, skip: 0 });
+
+    expect(mockPostFind).toHaveBeenCalledWith({
+      author: targetId,
+      visibility: { $in: ["public"] },
+      isArchived: { $ne: true },
+      isModerationHidden: { $ne: true },
+    });
+    expect(result && result.pagination.total).toBe(1);
+  });
+
+  it("returns followers-only posts to followers", async () => {
+    const target = { ...createUser(targetId), followers: [userId] };
+    const select = jest.fn().mockResolvedValue(target);
+    mockUserFindOne.mockReturnValueOnce({ select });
+    const mockPostPopulate = jest.fn().mockResolvedValue([]);
+    const mockPostLimit = jest.fn(() => ({ populate: mockPostPopulate }));
+    const mockPostSkip = jest.fn(() => ({ limit: mockPostLimit }));
+    const mockPostSort = jest.fn(() => ({ skip: mockPostSkip }));
+    mockPostFind.mockReturnValueOnce({ sort: mockPostSort });
+    mockPostCountDocuments.mockResolvedValueOnce(0);
+
+    await getUserPosts(targetId.toString(), { page: 1, limit: 20, skip: 0 }, userId.toString());
+
+    expect(mockPostFind).toHaveBeenCalledWith(
+      expect.objectContaining({ visibility: { $in: ["public", "followersOnly"] } })
+    );
+  });
+
+  it("does not expose posts for an inaccessible private profile", async () => {
+    const target = { ...createUser(targetId), isPrivate: true };
+    const select = jest.fn().mockResolvedValue(target);
+    mockUserFindOne.mockReturnValueOnce({ select });
+
+    await expect(
+      getUserPosts(targetId.toString(), { page: 1, limit: 20, skip: 0 }, userId.toString())
+    ).resolves.toBe(false);
   });
 
   it("does not expose a private profile follower list to a stranger", async () => {

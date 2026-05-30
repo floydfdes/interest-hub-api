@@ -1185,6 +1185,22 @@
                 }
             }
         },
+        "/api/users/{id}/posts": {
+            "get": {
+                "tags": ["Users"],
+                "summary": "Get visible posts for a user profile",
+                "parameters": [
+                    { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+                    { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+                    { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 } }
+                ],
+                "responses": {
+                    "200": { "description": "Paginated visible profile posts. Public viewers see public posts; followers also see followers-only posts; owners also see private posts." },
+                    "403": { "description": "Private profile is not accessible to this viewer" },
+                    "404": { "description": "User not found" }
+                }
+            }
+        },
         "/api/users/update": {
             "patch": {
                 "tags": [
