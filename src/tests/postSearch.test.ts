@@ -1,6 +1,8 @@
 const mockPopulate = jest.fn().mockResolvedValue([]);
 const mockFind = jest.fn(() => ({ populate: mockPopulate }));
 const mockCreate = jest.fn().mockResolvedValue({});
+const mockReportFindOne = jest.fn();
+const mockReportCreate = jest.fn();
 
 jest.mock("../models/Post", () => ({
   __esModule: true,
@@ -19,6 +21,14 @@ jest.mock("../utils/uploadImage", () => ({
   uploadImageToCloudinary: jest.fn().mockResolvedValue("uploaded-image"),
 }));
 
+jest.mock("../models/Report", () => ({
+  __esModule: true,
+  default: {
+    findOne: mockReportFindOne,
+    create: mockReportCreate,
+  },
+}));
+
 import {
   advancedSearchPostsService,
   createPostService,
@@ -29,6 +39,8 @@ import mongoose from "mongoose";
 describe("post search and tags", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCreate.mockResolvedValue({});
+    mockReportFindOne.mockResolvedValue(null);
   });
 
   it("normalizes tags when a post is created", async () => {
@@ -44,6 +56,36 @@ describe("post search and tags", () => {
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({ tags: ["typescript", "api"] })
     );
+  });
+
+  it("marks posts with bad language for admin review", async () => {
+    const postId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439014");
+    const flaggedWord = String.fromCharCode(115, 104, 105, 116);
+    mockCreate.mockResolvedValueOnce({ _id: postId });
+
+    await createPostService({
+      title: "Post",
+      content: `This is ${flaggedWord}`,
+      image: "image",
+      category: "Technology",
+      author: new mongoose.Types.ObjectId("507f1f77bcf86cd799439011"),
+      tags: [],
+    });
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isModerationHidden: true,
+        needsReview: true,
+        moderationReasons: ["bad_language"],
+      })
+    );
+    expect(mockReportCreate).toHaveBeenCalledWith({
+      targetType: "post",
+      post: postId,
+      reason: "bad_language",
+      source: "system",
+      details: "Automatically flagged for bad language review",
+    });
   });
 
   it("quick searches public posts by one escaped query across searchable fields", async () => {

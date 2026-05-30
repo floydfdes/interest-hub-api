@@ -51,7 +51,11 @@ jest.mock("../services/adminService", () => ({
   deleteAdminPostService: jest.fn(),
 }));
 
-import { createReportService, moderateReportService } from "../services/reportService";
+import {
+  createReportService,
+  moderateReportService,
+  reviewReportService,
+} from "../services/reportService";
 
 describe("reporting and moderation", () => {
   const reporterId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439011");
@@ -81,6 +85,7 @@ describe("reporting and moderation", () => {
 
     expect(mockReportCreate).toHaveBeenCalledWith({
       reporter: reporterId,
+      source: "user",
       targetType: "post",
       post: postId,
       reason: "spam",
@@ -121,11 +126,36 @@ describe("reporting and moderation", () => {
 
     expect(mockPostFindByIdAndUpdate).toHaveBeenCalledWith(
       postId,
-      { $set: { isModerationHidden: true } },
+      { $set: { isModerationHidden: true, needsReview: false } },
       { new: true }
     );
     expect(report.action).toBe("content_hidden");
     expect(report.status).toBe("resolved");
+    expect(report.save).toHaveBeenCalled();
+  });
+
+  it("dismisses automatic bad language reports by approving the content", async () => {
+    const report = {
+      reason: "bad_language",
+      targetType: "post",
+      post: postId,
+      status: "pending",
+      reviewedBy: undefined,
+      reviewedAt: undefined,
+      save: jest.fn(),
+    };
+    mockReportFindById.mockResolvedValueOnce(report);
+    mockPostFindByIdAndUpdate.mockResolvedValueOnce({ _id: postId });
+
+    await expect(
+      reviewReportService("report-id", adminId.toString(), "dismissed", "Allowed")
+    ).resolves.toBe(report);
+
+    expect(mockPostFindByIdAndUpdate).toHaveBeenCalledWith(postId, {
+      $set: { needsReview: false, isModerationHidden: false },
+      $pull: { moderationReasons: "bad_language" },
+    });
+    expect(report.status).toBe("dismissed");
     expect(report.save).toHaveBeenCalled();
   });
 

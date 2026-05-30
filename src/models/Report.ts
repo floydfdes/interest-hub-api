@@ -9,8 +9,10 @@ export const REPORT_REASONS = [
   "sexual_content",
   "misinformation",
   "impersonation",
+  "bad_language",
   "other",
 ] as const;
+export const REPORT_SOURCES = ["user", "system"] as const;
 export const REPORT_STATUSES = ["pending", "reviewing", "resolved", "dismissed"] as const;
 export const REPORT_ACTIONS = [
   "none",
@@ -21,11 +23,13 @@ export const REPORT_ACTIONS = [
 
 export type ReportTargetType = (typeof REPORT_TARGET_TYPES)[number];
 export type ReportReason = (typeof REPORT_REASONS)[number];
+export type ReportSource = (typeof REPORT_SOURCES)[number];
 export type ReportStatus = (typeof REPORT_STATUSES)[number];
 export type ReportAction = (typeof REPORT_ACTIONS)[number];
 
 export interface IReport extends Document {
-  reporter: Types.ObjectId;
+  reporter?: Types.ObjectId;
+  source: ReportSource;
   targetType: ReportTargetType;
   targetUser?: Types.ObjectId;
   post?: Types.ObjectId;
@@ -43,7 +47,8 @@ export interface IReport extends Document {
 
 const ReportSchema = new Schema<IReport>(
   {
-    reporter: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    reporter: { type: Schema.Types.ObjectId, ref: "User", index: true },
+    source: { type: String, enum: REPORT_SOURCES, default: "user", index: true },
     targetType: { type: String, enum: REPORT_TARGET_TYPES, required: true, index: true },
     targetUser: { type: Schema.Types.ObjectId, ref: "User", index: true },
     post: { type: Schema.Types.ObjectId, ref: "Post", index: true },

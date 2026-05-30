@@ -2,6 +2,7 @@ import CommentModel, { IComment } from "../models/Comment";
 import Post from "../models/Post";
 
 import mongoose from "mongoose";
+import { analyzeContentModeration, createAutoModerationReport } from "./contentModerationService";
 
 const populateCommentUsers = async (comment: IComment | null): Promise<IComment | null> => {
   if (!comment) return null;
@@ -33,11 +34,22 @@ export const createCommentService = async (
     likes: [],
     replies: [],
   });
+  const moderation = analyzeContentModeration([content]);
+  comment.isModerationHidden = moderation.needsReview;
+  comment.needsReview = moderation.needsReview;
+  comment.moderationReasons = moderation.reasons;
 
   const savedComment = await comment.save();
 
   post.comments.push(savedComment._id);
   await post.save();
+
+  if (moderation.needsReview) {
+    await createAutoModerationReport({
+      targetType: "comment",
+      targetId: savedComment._id as mongoose.Types.ObjectId,
+    });
+  }
 
   return (await populateCommentUsers(savedComment))!;
 };
@@ -47,11 +59,31 @@ export const editCommentService = async (
   userId: string,
   content: string
 ): Promise<IComment | null> => {
-  const comment = await CommentModel.findOneAndUpdate(
-    { _id: commentId, user: userId },
-    { content },
-    { new: true }
-  );
+  const comment = await CommentModel.findOne({ _id: commentId, user: userId });
+  if (!comment) return null;
+
+  const moderation = analyzeContentModeration([content]);
+  comment.content = content;
+  if (moderation.needsReview) {
+    comment.isModerationHidden = true;
+    comment.needsReview = true;
+    comment.moderationReasons = [
+      ...new Set([...(comment.moderationReasons ?? []), ...moderation.reasons]),
+    ];
+  } else {
+    comment.moderationReasons = (comment.moderationReasons ?? []).filter(
+      (reason) => reason !== "bad_language"
+    );
+    comment.needsReview = comment.moderationReasons.length > 0;
+  }
+  await comment.save();
+  if (moderation.needsReview) {
+    await createAutoModerationReport({
+      targetType: "comment",
+      targetId: comment._id as mongoose.Types.ObjectId,
+    });
+  }
+
   return populateCommentUsers(comment);
 };
 
@@ -95,6 +127,7 @@ export const replyToCommentService = async (
   userId: string,
   content: string
 ): Promise<IComment | null> => {
+  const moderation = analyzeContentModeration([content]);
   const reply = {
     user: new mongoose.Types.ObjectId(userId),
     content,
@@ -103,9 +136,21 @@ export const replyToCommentService = async (
   };
   const comment = await CommentModel.findByIdAndUpdate(
     commentId,
-    { $push: { replies: reply } },
+    {
+      $push: { replies: reply },
+      ...(moderation.needsReview && {
+        $set: { isModerationHidden: true, needsReview: true },
+        $addToSet: { moderationReasons: { $each: moderation.reasons } },
+      }),
+    },
     { new: true }
   );
+  if (comment && moderation.needsReview) {
+    await createAutoModerationReport({
+      targetType: "comment",
+      targetId: comment._id as mongoose.Types.ObjectId,
+    });
+  }
   return populateCommentUsers(comment);
 };
 
@@ -121,8 +166,27 @@ export const editReplyService = async (
   });
 
   if (!comment || !comment.replies[replyIndex]) return null;
+  const moderation = analyzeContentModeration([content]);
   comment.replies[replyIndex].content = content;
+  if (moderation.needsReview) {
+    comment.isModerationHidden = true;
+    comment.needsReview = true;
+    comment.moderationReasons = [
+      ...new Set([...(comment.moderationReasons ?? []), ...moderation.reasons]),
+    ];
+  } else {
+    comment.moderationReasons = (comment.moderationReasons ?? []).filter(
+      (reason) => reason !== "bad_language"
+    );
+    comment.needsReview = comment.moderationReasons.length > 0;
+  }
   await comment.save();
+  if (moderation.needsReview) {
+    await createAutoModerationReport({
+      targetType: "comment",
+      targetId: comment._id as mongoose.Types.ObjectId,
+    });
+  }
   return populateCommentUsers(comment);
 };
 
@@ -181,6 +245,7 @@ export const replyToReplyService = async (
   const comment = await CommentModel.findById(commentId);
   if (!comment || !comment.replies[parentReplyIndex]) return null;
 
+  const moderation = analyzeContentModeration([content]);
   const reply = {
     user: new mongoose.Types.ObjectId(userId),
     content,
@@ -189,6 +254,19 @@ export const replyToReplyService = async (
   };
 
   comment.replies.splice(parentReplyIndex + 1, 0, reply);
+  if (moderation.needsReview) {
+    comment.isModerationHidden = true;
+    comment.needsReview = true;
+    comment.moderationReasons = [
+      ...new Set([...(comment.moderationReasons ?? []), ...moderation.reasons]),
+    ];
+  }
   await comment.save();
+  if (moderation.needsReview) {
+    await createAutoModerationReport({
+      targetType: "comment",
+      targetId: comment._id as mongoose.Types.ObjectId,
+    });
+  }
   return populateCommentUsers(comment);
 };

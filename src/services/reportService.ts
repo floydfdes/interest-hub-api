@@ -64,6 +64,7 @@ export const createReportService = async ({
 
   return Report.create({
     reporter: reporterObjectId,
+    source: "user",
     targetType,
     ...targets,
     reason,
@@ -90,9 +91,30 @@ const populateReport = <T extends { populate: (...args: any[]) => T }>(query: T)
   query
     .populate("reporter", "name email profilePic")
     .populate("targetUser", "name email profilePic isBlocked")
-    .populate("post", "title content image author isModerationHidden")
-    .populate("comment", "content user post isModerationHidden")
+    .populate("post", "title content image author isModerationHidden needsReview moderationReasons")
+    .populate("comment", "content user post isModerationHidden needsReview moderationReasons")
     .populate("reviewedBy", "name email profilePic");
+
+const clearBadLanguageReview = async (report: {
+  reason: ReportReason;
+  targetType: ReportTargetType;
+  post?: mongoose.Types.ObjectId;
+  comment?: mongoose.Types.ObjectId;
+}) => {
+  if (report.reason !== "bad_language") return;
+
+  const update = {
+    $set: { needsReview: false, isModerationHidden: false },
+    $pull: { moderationReasons: "bad_language" },
+  };
+
+  if (report.targetType === "post" && report.post) {
+    await Post.findByIdAndUpdate(report.post, update);
+  }
+  if (report.targetType === "comment" && report.comment) {
+    await Comment.findByIdAndUpdate(report.comment, update);
+  }
+};
 
 export const getAdminReportsService = async ({
   status,
@@ -121,16 +143,19 @@ export const reviewReportService = async (
   status: Exclude<ReportStatus, "pending">,
   note?: string
 ) => {
-  return Report.findByIdAndUpdate(
-    id,
-    {
-      status,
-      reviewedBy: adminId,
-      reviewedAt: new Date(),
-      ...(note !== undefined && { resolutionNote: note.trim() }),
-    },
-    { new: true }
-  );
+  const report = await Report.findById(id);
+  if (!report) return null;
+
+  if (status === "dismissed") {
+    await clearBadLanguageReview(report);
+  }
+
+  report.status = status;
+  report.reviewedBy = new mongoose.Types.ObjectId(adminId);
+  report.reviewedAt = new Date();
+  if (note !== undefined) report.resolutionNote = note.trim();
+  await report.save();
+  return report;
 };
 
 export const moderateReportService = async (
@@ -146,14 +171,14 @@ export const moderateReportService = async (
     if (report.targetType === "post" && report.post) {
       const post = await Post.findByIdAndUpdate(
         report.post,
-        { $set: { isModerationHidden: true } },
+        { $set: { isModerationHidden: true, needsReview: false } },
         { new: true }
       );
       if (!post) throw new Error("Reported content not found");
     } else if (report.targetType === "comment" && report.comment) {
       const comment = await Comment.findByIdAndUpdate(
         report.comment,
-        { $set: { isModerationHidden: true } },
+        { $set: { isModerationHidden: true, needsReview: false } },
         { new: true }
       );
       if (!comment) throw new Error("Reported content not found");

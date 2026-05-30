@@ -378,7 +378,7 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Post created"
+                        "description": "Post created. Posts flagged for bad language are returned with needsReview=true, moderationReasons=[\"bad_language\"], moderationNotice, and are hidden until admin review."
                     },
                     "401": {
                         "description": "Unauthorized"
@@ -1733,7 +1733,7 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Comment created"
+                        "description": "Comment created. Comments flagged for bad language are returned with needsReview=true, moderationReasons=[\"bad_language\"], moderationNotice, and are hidden until admin review."
                     },
                     "401": {
                         "description": "Unauthorized"
@@ -2206,7 +2206,7 @@
                                     "targetId": { "type": "string" },
                                     "reason": {
                                         "type": "string",
-                                        "enum": ["spam", "harassment", "hate_speech", "violence", "sexual_content", "misinformation", "impersonation", "other"]
+                                        "enum": ["spam", "harassment", "hate_speech", "violence", "sexual_content", "misinformation", "impersonation", "bad_language", "other"]
                                     },
                                     "details": { "type": "string", "maxLength": 500 }
                                 }
@@ -2294,7 +2294,7 @@
         "/api/admin/reports": {
             "get": {
                 "tags": ["Admin"],
-                "summary": "List reports in the moderation queue",
+                "summary": "List user-submitted and automatic reports in the moderation queue",
                 "parameters": [
                     { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["pending", "reviewing", "resolved", "dismissed"] } },
                     { "name": "targetType", "in": "query", "schema": { "type": "string", "enum": ["post", "comment", "user"] } },
@@ -2323,7 +2323,7 @@
         "/api/admin/reports/{id}/status": {
             "patch": {
                 "tags": ["Admin"],
-                "summary": "Mark a report as reviewing, resolved, or dismissed",
+                "summary": "Mark a report as reviewing, resolved, or dismissed. Dismissing an automatic bad language report approves and unhides the content.",
                 "parameters": [
                     { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
                 ],

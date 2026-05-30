@@ -1,4 +1,6 @@
 const mockFindByIdAndUpdate = jest.fn();
+const mockReportFindOne = jest.fn();
+const mockReportCreate = jest.fn();
 
 jest.mock("../models/Comment", () => ({
   __esModule: true,
@@ -12,9 +14,23 @@ jest.mock("../models/Post", () => ({
   default: {},
 }));
 
+jest.mock("../models/Report", () => ({
+  __esModule: true,
+  default: {
+    findOne: mockReportFindOne,
+    create: mockReportCreate,
+  },
+}));
+
 import { replyToCommentService } from "../services/commentService";
+import mongoose from "mongoose";
 
 describe("replyToCommentService", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockReportFindOne.mockResolvedValue(null);
+  });
+
   it("populates comment and reply authors in its response", async () => {
     const comment = { populate: jest.fn().mockResolvedValue(undefined) };
     mockFindByIdAndUpdate.mockResolvedValue(comment);
@@ -30,5 +46,31 @@ describe("replyToCommentService", () => {
       { path: "replies.user", select: "name profilePic" },
     ]);
     expect(result).toBe(comment);
+  });
+
+  it("marks comments with bad language for admin review when replying", async () => {
+    const commentId = "507f1f77bcf86cd799439011";
+    const commentObjectId = new mongoose.Types.ObjectId(commentId);
+    const comment = { _id: commentObjectId, populate: jest.fn().mockResolvedValue(undefined) };
+    const flaggedWord = String.fromCharCode(115, 104, 105, 116);
+    mockFindByIdAndUpdate.mockResolvedValue(comment);
+
+    await replyToCommentService(commentId, "507f1f77bcf86cd799439012", `This is ${flaggedWord}`);
+
+    expect(mockFindByIdAndUpdate).toHaveBeenCalledWith(
+      commentId,
+      expect.objectContaining({
+        $set: { isModerationHidden: true, needsReview: true },
+        $addToSet: { moderationReasons: { $each: ["bad_language"] } },
+      }),
+      { new: true }
+    );
+    expect(mockReportCreate).toHaveBeenCalledWith({
+      targetType: "comment",
+      comment: commentObjectId,
+      reason: "bad_language",
+      source: "system",
+      details: "Automatically flagged for bad language review",
+    });
   });
 });

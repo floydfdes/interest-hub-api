@@ -5,6 +5,7 @@ import User from "../models/User";
 
 import { uploadImageToCloudinary } from "../utils/uploadImage";
 import { paginatedResponse, PaginationParams } from "../utils/pagination";
+import { analyzeContentModeration, createAutoModerationReport } from "./contentModerationService";
 
 type CreatePostData = Pick<IPost, "title" | "content" | "category" | "author"> & {
   image: string;
@@ -41,9 +42,10 @@ const publiclyVisible = {
 export const createPostService = async (postData: CreatePostData) => {
   if (!postData.image) throw new Error("Image is required");
 
+  const moderation = analyzeContentModeration([postData.title, postData.content]);
   const cloudinaryUrl = await uploadImageToCloudinary(postData.image, "post_images");
 
-  return await Post.create({
+  const post = await Post.create({
     title: postData.title,
     content: postData.content,
     category: postData.category,
@@ -51,7 +53,19 @@ export const createPostService = async (postData: CreatePostData) => {
     visibility: postData.visibility,
     author: postData.author,
     image: cloudinaryUrl,
+    isModerationHidden: moderation.needsReview,
+    needsReview: moderation.needsReview,
+    moderationReasons: moderation.reasons,
   });
+
+  if (moderation.needsReview) {
+    await createAutoModerationReport({
+      targetType: "post",
+      targetId: post._id as mongoose.Types.ObjectId,
+    });
+  }
+
+  return post;
 };
 
 export const getAllPostsService = async (pagination: PaginationParams) => {
@@ -444,8 +458,32 @@ export const updatePostService = async (id: string, userId: string, updates: Upd
     ...(updates.image && { image: updates.image }),
   };
 
+  const moderation = analyzeContentModeration([
+    typeof updates.title === "string" ? updates.title : post.title,
+    typeof updates.content === "string" ? updates.content : post.content,
+  ]);
+
   Object.assign(post, allowedUpdates, { isEdited: true });
+  if (moderation.needsReview) {
+    post.isModerationHidden = true;
+    post.needsReview = true;
+    post.moderationReasons = [
+      ...new Set([...(post.moderationReasons ?? []), ...moderation.reasons]),
+    ];
+  } else {
+    post.moderationReasons = (post.moderationReasons ?? []).filter(
+      (reason) => reason !== "bad_language"
+    );
+    post.needsReview = post.moderationReasons.length > 0;
+  }
   await post.save();
+  if (moderation.needsReview) {
+    await createAutoModerationReport({
+      targetType: "post",
+      targetId: post._id as mongoose.Types.ObjectId,
+    });
+  }
+
   return post;
 };
 

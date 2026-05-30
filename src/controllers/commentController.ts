@@ -15,6 +15,7 @@ import {
 
 import { AuthRequest } from "../middleware/authMiddleware";
 import { logError } from "../utils/logger";
+import { withModerationNotice } from "../utils/moderationResponse";
 
 export const createComment = async (req: AuthRequest, res: Response) => {
   try {
@@ -22,7 +23,7 @@ export const createComment = async (req: AuthRequest, res: Response) => {
     const userId = req.userId!;
 
     const comment = await createCommentService(userId, postId, content);
-    res.status(201).json(comment);
+    res.status(201).json(withModerationNotice(comment));
   } catch (error) {
     logError("Failed to create comment", error, { postId: req.body.postId, userId: req.userId });
     res.status(500).json({ message: "Failed to create comment" });
@@ -41,7 +42,7 @@ export const editComment = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    res.status(200).json(comment);
+    res.status(200).json(withModerationNotice(comment));
   } catch (error) {
     logError("Failed to edit comment", error, {
       commentId: req.params.commentId,
@@ -78,7 +79,7 @@ export const likeComment = async (req: AuthRequest, res: Response) => {
     const userId = req.userId!;
 
     const comment = await likeCommentService(commentId, userId);
-    res.json(comment);
+    res.json(comment ? withModerationNotice(comment) : comment);
   } catch (error) {
     logError("Failed to like comment", error, {
       commentId: req.params.commentId,
@@ -94,7 +95,7 @@ export const unlikeComment = async (req: AuthRequest, res: Response) => {
     const userId = req.userId!;
 
     const comment = await unlikeCommentService(commentId, userId);
-    res.json(comment);
+    res.json(comment ? withModerationNotice(comment) : comment);
   } catch (error) {
     logError("Failed to unlike comment", error, {
       commentId: req.params.commentId,
@@ -111,7 +112,7 @@ export const replyToComment = async (req: AuthRequest, res: Response) => {
     const userId = req.userId!;
 
     const comment = await replyToCommentService(commentId, userId, content);
-    res.json(comment);
+    res.json(comment ? withModerationNotice(comment) : comment);
   } catch (error) {
     logError("Failed to reply to comment", error, {
       commentId: req.params.commentId,
@@ -133,7 +134,7 @@ export const editReply = async (req: AuthRequest, res: Response): Promise<void> 
       return;
     }
 
-    res.status(200).json(comment);
+    res.status(200).json(withModerationNotice(comment));
   } catch (error) {
     logError("Failed to edit reply", error, {
       commentId: req.params.commentId,
@@ -172,7 +173,7 @@ export const likeReply = async (req: AuthRequest, res: Response) => {
     const userId = req.userId!;
 
     const comment = await likeReplyService(commentId, Number(replyIndex), userId);
-    res.json(comment);
+    res.json(comment ? withModerationNotice(comment) : comment);
   } catch (error) {
     logError("Failed to like reply", error, {
       commentId: req.params.commentId,
@@ -189,7 +190,7 @@ export const unlikeReply = async (req: AuthRequest, res: Response) => {
     const userId = req.userId!;
 
     const comment = await unlikeReplyService(commentId, Number(replyIndex), userId);
-    res.json(comment);
+    res.json(comment ? withModerationNotice(comment) : comment);
   } catch (error) {
     logError("Failed to unlike reply", error, {
       commentId: req.params.commentId,
@@ -207,7 +208,7 @@ export const replyToReply = async (req: AuthRequest, res: Response) => {
     const userId = req.userId!;
 
     const comment = await replyToReplyService(commentId, Number(parentReplyIndex), userId, content);
-    res.json(comment);
+    res.json(comment ? withModerationNotice(comment) : comment);
   } catch (error) {
     logError("Failed to reply to reply", error, {
       commentId: req.params.commentId,

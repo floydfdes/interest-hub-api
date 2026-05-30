@@ -29,6 +29,7 @@ import { AuthRequest } from "../middleware/authMiddleware";
 import { logError } from "../utils/logger";
 import { getPagination } from "../utils/pagination";
 import { getActivityRequestContext, recordActivity } from "../services/activityService";
+import { withModerationNotice } from "../utils/moderationResponse";
 
 const getLimit = (value: unknown, defaultLimit = 20) => {
   const parsed = typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;
@@ -60,7 +61,7 @@ export const createPost = async (req: AuthRequest, res: Response) => {
       ...getActivityRequestContext(req),
     });
 
-    res.status(201).json(post);
+    res.status(201).json(withModerationNotice(post));
   } catch (error) {
     logError("Failed to create post", error, {
       userId: req.userId,
@@ -331,7 +332,7 @@ export const getPostById = async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    res.json(post);
+    res.json(withModerationNotice(post));
   } catch (error) {
     logError("Failed to fetch post", error, { postId: req.params.id });
     res.status(500).json({ message: "Failed to fetch post" });
