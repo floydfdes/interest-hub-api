@@ -15,7 +15,10 @@ export const createPostValidation = [
     .withMessage("Each tag must be a string")
     .trim()
     .notEmpty()
-    .withMessage("Tags cannot be empty"),
+    .withMessage("Tags cannot be empty")
+    .not()
+    .equals("null")
+    .withMessage("Tags cannot be null"),
 ];
 
 export const updatePostValidation = [
@@ -33,6 +36,9 @@ export const updatePostValidation = [
     .withMessage("Each tag must be a string")
     .trim()
     .notEmpty()
-    .withMessage("Tags cannot be empty"),
+    .withMessage("Tags cannot be empty")
+    .not()
+    .equals("null")
+    .withMessage("Tags cannot be null"),
   body("category").optional().isString(),
 ];

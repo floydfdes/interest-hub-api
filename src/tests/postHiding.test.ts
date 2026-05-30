@@ -43,6 +43,7 @@ import {
   archivePostService,
   getArchivedPostsService,
   getHiddenPostsService,
+  getPostsUnderReviewService,
   hidePostService,
   unhidePostService,
 } from "../services/postService";
@@ -133,5 +134,17 @@ describe("post archiving", () => {
       isModerationHidden: { $ne: true },
     });
     expect(mockPostSort).toHaveBeenCalledWith({ archivedAt: -1 });
+  });
+
+  it("returns only the owner's posts waiting for moderation review", async () => {
+    const result = await getPostsUnderReviewService(userId, { page: 1, limit: 20, skip: 0 });
+
+    expect(mockPostFind).toHaveBeenCalledWith({
+      author: userId,
+      needsReview: true,
+      isModerationHidden: true,
+    });
+    expect(mockPostSort).toHaveBeenCalledWith({ updatedAt: -1 });
+    expect(result.pagination.total).toBe(1);
   });
 });

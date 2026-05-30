@@ -3,11 +3,14 @@ const mockFind = jest.fn(() => ({ populate: mockPopulate }));
 const mockCreate = jest.fn().mockResolvedValue({});
 const mockReportFindOne = jest.fn();
 const mockReportCreate = jest.fn();
+const mockReportUpdateMany = jest.fn();
+const mockFindById = jest.fn();
 
 jest.mock("../models/Post", () => ({
   __esModule: true,
   default: {
     create: mockCreate,
+    findById: mockFindById,
     find: mockFind,
   },
 }));
@@ -26,6 +29,7 @@ jest.mock("../models/Report", () => ({
   default: {
     findOne: mockReportFindOne,
     create: mockReportCreate,
+    updateMany: mockReportUpdateMany,
   },
 }));
 
@@ -33,6 +37,7 @@ import {
   advancedSearchPostsService,
   createPostService,
   searchPostsService,
+  updatePostService,
 } from "../services/postService";
 import mongoose from "mongoose";
 
@@ -40,6 +45,7 @@ describe("post search and tags", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCreate.mockResolvedValue({});
+    mockFindById.mockResolvedValue(null);
     mockReportFindOne.mockResolvedValue(null);
   });
 
@@ -86,6 +92,48 @@ describe("post search and tags", () => {
       source: "system",
       details: "Automatically flagged for bad language review",
     });
+  });
+
+  it("unhides an under-review post when the owner edits out bad language", async () => {
+    const postId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439014");
+    const authorId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439011");
+    const post = {
+      _id: postId,
+      title: "Post",
+      content: "Clean content",
+      author: authorId,
+      isModerationHidden: true,
+      needsReview: true,
+      moderationReasons: ["bad_language"],
+      save: jest.fn(),
+    };
+    mockFindById.mockResolvedValueOnce(post);
+
+    await expect(
+      updatePostService(postId.toString(), authorId.toString(), {
+        content: "Clean updated content",
+      })
+    ).resolves.toBe(post);
+
+    expect(post.isModerationHidden).toBe(false);
+    expect(post.needsReview).toBe(false);
+    expect(post.moderationReasons).toEqual([]);
+    expect(mockReportUpdateMany).toHaveBeenCalledWith(
+      {
+        targetType: "post",
+        post: postId,
+        reason: "bad_language",
+        source: "system",
+        status: { $in: ["pending", "reviewing"] },
+      },
+      {
+        $set: {
+          status: "dismissed",
+          reviewedAt: expect.any(Date),
+          resolutionNote: "Content edited and no longer flagged automatically",
+        },
+      }
+    );
   });
 
   it("quick searches public posts by one escaped query across searchable fields", async () => {

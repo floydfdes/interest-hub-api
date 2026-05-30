@@ -11,6 +11,7 @@ import {
   getFollowingFeedService,
   getHiddenPostsService,
   getPostByIdService,
+  getPostsUnderReviewService,
   getRecommendedPostsService,
   getTrendingPostsService,
   hidePostService,
@@ -241,6 +242,19 @@ export const getArchivedPosts = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const getPostsUnderReview = async (req: AuthRequest, res: Response) => {
+  try {
+    const posts = await getPostsUnderReviewService(req.userId!, getPagination(req.query));
+    res.status(200).json({
+      ...posts,
+      items: posts.items.map((post) => withModerationNotice(post)),
+    });
+  } catch (error) {
+    logError("Failed to fetch posts under review", error, { userId: req.userId });
+    res.status(500).json({ message: "Failed to fetch posts under review" });
+  }
+};
+
 export const hidePost = async (req: AuthRequest, res: Response) => {
   try {
     const result = await hidePostService(req.params.id, req.userId!);
@@ -358,7 +372,7 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    res.json(post);
+    res.json(withModerationNotice(post));
   } catch (error) {
     logError("Failed to update post", error, { postId: req.params.id, userId: req.userId });
     res.status(500).json({ message: "Failed to update post" });

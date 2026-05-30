@@ -809,6 +809,21 @@
                 }
             }
         },
+        "/api/posts/review": {
+            "get": {
+                "tags": ["Posts"],
+                "summary": "List the authenticated user's posts currently hidden for moderation review",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+                    { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 } }
+                ],
+                "responses": {
+                    "200": { "description": "Paginated posts under moderation review. Each item includes moderationNotice." },
+                    "401": { "description": "Unauthorized" }
+                }
+            }
+        },
         "/api/posts/{id}/like": {
             "post": {
                 "tags": [

@@ -5,7 +5,11 @@ import User from "../models/User";
 
 import { uploadImageToCloudinary } from "../utils/uploadImage";
 import { paginatedResponse, PaginationParams } from "../utils/pagination";
-import { analyzeContentModeration, createAutoModerationReport } from "./contentModerationService";
+import {
+  analyzeContentModeration,
+  createAutoModerationReport,
+  dismissAutoModerationReport,
+} from "./contentModerationService";
 
 type CreatePostData = Pick<IPost, "title" | "content" | "category" | "author"> & {
   image: string;
@@ -428,6 +432,24 @@ export const getArchivedPostsService = async (userId: string, pagination: Pagina
   return paginatedResponse(posts, total, pagination);
 };
 
+export const getPostsUnderReviewService = async (userId: string, pagination: PaginationParams) => {
+  const filter = {
+    author: userId,
+    needsReview: true,
+    isModerationHidden: true,
+  };
+  const [posts, total] = await Promise.all([
+    Post.find(filter)
+      .sort({ updatedAt: -1 })
+      .skip(pagination.skip)
+      .limit(pagination.limit)
+      .populate("author", "name profilePic"),
+    Post.countDocuments(filter),
+  ]);
+
+  return paginatedResponse(posts, total, pagination);
+};
+
 export const archivePostService = async (id: string, userId: string, archive: boolean) => {
   const post = await Post.findById(id);
   if (!post) return null;
@@ -475,10 +497,18 @@ export const updatePostService = async (id: string, userId: string, updates: Upd
       (reason) => reason !== "bad_language"
     );
     post.needsReview = post.moderationReasons.length > 0;
+    if (!post.needsReview) {
+      post.isModerationHidden = false;
+    }
   }
   await post.save();
   if (moderation.needsReview) {
     await createAutoModerationReport({
+      targetType: "post",
+      targetId: post._id as mongoose.Types.ObjectId,
+    });
+  } else {
+    await dismissAutoModerationReport({
       targetType: "post",
       targetId: post._id as mongoose.Types.ObjectId,
     });

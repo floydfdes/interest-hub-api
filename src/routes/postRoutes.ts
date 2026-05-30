@@ -11,6 +11,7 @@ import {
   getHiddenPosts,
   getPostById,
   getPostLikes,
+  getPostsUnderReview,
   getRecommendedPosts,
   getTrendingPosts,
   hidePost,
@@ -40,6 +41,7 @@ router.get("/recommended", authMiddleware, getRecommendedPosts);
 router.get("/bookmarks", authMiddleware, getBookmarkedPosts);
 router.get("/hidden", authMiddleware, getHiddenPosts);
 router.get("/archived", authMiddleware, getArchivedPosts);
+router.get("/review", authMiddleware, getPostsUnderReview);
 router.get("/:id/likes", getPostLikes);
 router.get("/:id", optionalAuthMiddleware, getPostById);
 router.put("/:id", authMiddleware, updatePostValidation, validate, updatePost);

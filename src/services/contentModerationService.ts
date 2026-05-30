@@ -55,3 +55,30 @@ export const createAutoModerationReport = async ({
     details: "Automatically flagged for bad language review",
   });
 };
+
+export const dismissAutoModerationReport = async ({
+  targetType,
+  targetId,
+}: {
+  targetType: "post" | "comment";
+  targetId: Types.ObjectId;
+}) => {
+  const target = targetType === "post" ? { post: targetId } : { comment: targetId };
+
+  return Report.updateMany(
+    {
+      targetType,
+      ...target,
+      reason: "bad_language",
+      source: "system",
+      status: { $in: ["pending", "reviewing"] },
+    },
+    {
+      $set: {
+        status: "dismissed",
+        reviewedAt: new Date(),
+        resolutionNote: "Content edited and no longer flagged automatically",
+      },
+    }
+  );
+};
