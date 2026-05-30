@@ -62,6 +62,49 @@ describe("getPostByIdService", () => {
     expect(post.save).not.toHaveBeenCalled();
   });
 
+  it("does not reveal a moderation-hidden post to a non-owner", async () => {
+    const authorId = new mongoose.Types.ObjectId();
+    const post = {
+      author: { _id: authorId },
+      visibility: "public",
+      isModerationHidden: true,
+      viewCount: 0,
+      save: jest.fn(),
+    };
+    mockPopulateComments.mockResolvedValueOnce(post);
+
+    await expect(
+      getPostByIdService("post-id", new mongoose.Types.ObjectId().toString())
+    ).resolves.toBeNull();
+    expect(post.save).not.toHaveBeenCalled();
+  });
+
+  it("allows an owner to read a moderation-hidden post for editing", async () => {
+    const authorId = new mongoose.Types.ObjectId();
+    const post = {
+      author: { _id: authorId },
+      visibility: "public",
+      isModerationHidden: true,
+      needsReview: true,
+      viewCount: 0,
+      save: jest.fn(),
+    };
+    mockPopulateComments.mockResolvedValueOnce(post);
+
+    await expect(getPostByIdService("post-id", authorId.toString())).resolves.toBe(post);
+    expect(post.viewCount).toBe(1);
+    expect(post.save).toHaveBeenCalled();
+  });
+
+  it("looks up a post by id even when it is hidden for moderation", async () => {
+    await getPostByIdService("507f1f77bcf86cd799439011");
+
+    expect(mockFindOne).toHaveBeenCalledWith({
+      _id: "507f1f77bcf86cd799439011",
+      isArchived: { $ne: true },
+    });
+  });
+
   it("allows a follower to read a followers-only post", async () => {
     const authorId = new mongoose.Types.ObjectId();
     const viewerId = new mongoose.Types.ObjectId().toString();

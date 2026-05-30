@@ -379,7 +379,10 @@ export const getHiddenPostsService = async (userId: string, pagination: Paginati
 };
 
 export const getPostByIdService = async (id: string, viewerId?: string) => {
-  const post = await Post.findOne({ _id: id, ...publiclyVisible })
+  const post = await Post.findOne({
+    _id: id,
+    isArchived: { $ne: true },
+  })
     .populate("author", "name profilePic")
     .populate({
       path: "comments",
@@ -402,6 +405,7 @@ export const getPostByIdService = async (id: string, viewerId?: string) => {
   const populatedAuthor = post.author as unknown as { _id?: mongoose.Types.ObjectId };
   const authorId = (populatedAuthor._id ?? post.author).toString();
   const isOwner = authorId === viewerId;
+  if (post.isModerationHidden && !isOwner) return null;
   if (post.visibility === "private" && !isOwner) return null;
   if (post.visibility === "followersOnly" && !isOwner) {
     if (!viewerId) return null;
