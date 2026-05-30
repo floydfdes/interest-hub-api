@@ -31,6 +31,7 @@ import { logError } from "../utils/logger";
 import { getPagination } from "../utils/pagination";
 import { getActivityRequestContext, recordActivity } from "../services/activityService";
 import { withModerationNotice } from "../utils/moderationResponse";
+import { createNotification } from "../services/notificationService";
 
 const getLimit = (value: unknown, defaultLimit = 20) => {
   const parsed = typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;
@@ -422,6 +423,13 @@ export const likePost = async (req: AuthRequest, res: Response) => {
         type: "post_liked",
         postId: id,
         ...getActivityRequestContext(req),
+      });
+      await createNotification({
+        recipientId: result.post.author as mongoose.Types.ObjectId,
+        actorId: userId!,
+        type: "post_liked",
+        postId: result.post._id as mongoose.Types.ObjectId,
+        message: "Someone liked your post.",
       });
     }
 

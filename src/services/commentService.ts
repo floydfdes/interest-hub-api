@@ -3,6 +3,7 @@ import Post from "../models/Post";
 
 import mongoose from "mongoose";
 import { analyzeContentModeration, createAutoModerationReport } from "./contentModerationService";
+import { createNotification } from "./notificationService";
 
 const populateCommentUsers = async (comment: IComment | null): Promise<IComment | null> => {
   if (!comment) return null;
@@ -48,6 +49,15 @@ export const createCommentService = async (
     await createAutoModerationReport({
       targetType: "comment",
       targetId: savedComment._id as mongoose.Types.ObjectId,
+    });
+  } else {
+    await createNotification({
+      recipientId: post.author,
+      actorId: userId,
+      type: "comment_created",
+      postId: post._id as mongoose.Types.ObjectId,
+      commentId: savedComment._id as mongoose.Types.ObjectId,
+      message: "Someone commented on your post.",
     });
   }
 
@@ -149,6 +159,15 @@ export const replyToCommentService = async (
     await createAutoModerationReport({
       targetType: "comment",
       targetId: comment._id as mongoose.Types.ObjectId,
+    });
+  } else if (comment) {
+    await createNotification({
+      recipientId: comment.user,
+      actorId: userId,
+      type: "reply_created",
+      postId: comment.post,
+      commentId: comment._id as mongoose.Types.ObjectId,
+      message: "Someone replied to your comment.",
     });
   }
   return populateCommentUsers(comment);
@@ -266,6 +285,15 @@ export const replyToReplyService = async (
     await createAutoModerationReport({
       targetType: "comment",
       targetId: comment._id as mongoose.Types.ObjectId,
+    });
+  } else {
+    await createNotification({
+      recipientId: comment.replies[parentReplyIndex].user,
+      actorId: userId,
+      type: "reply_created",
+      postId: comment.post,
+      commentId: comment._id as mongoose.Types.ObjectId,
+      message: "Someone replied to your reply.",
     });
   }
   return populateCommentUsers(comment);

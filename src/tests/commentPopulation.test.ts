@@ -1,6 +1,7 @@
 const mockFindByIdAndUpdate = jest.fn();
 const mockReportFindOne = jest.fn();
 const mockReportCreate = jest.fn();
+const mockCreateNotification = jest.fn();
 
 jest.mock("../models/Comment", () => ({
   __esModule: true,
@@ -22,6 +23,10 @@ jest.mock("../models/Report", () => ({
   },
 }));
 
+jest.mock("../services/notificationService", () => ({
+  createNotification: mockCreateNotification,
+}));
+
 import { replyToCommentService } from "../services/commentService";
 import mongoose from "mongoose";
 
@@ -29,6 +34,7 @@ describe("replyToCommentService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockReportFindOne.mockResolvedValue(null);
+    mockCreateNotification.mockResolvedValue({});
   });
 
   it("populates comment and reply authors in its response", async () => {

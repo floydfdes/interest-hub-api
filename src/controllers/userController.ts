@@ -30,6 +30,7 @@ import {
   recordActivity,
 } from "../services/activityService";
 import { USER_ACTIVITY_TYPES, UserActivityType } from "../models/UserActivity";
+import { createNotification } from "../services/notificationService";
 
 const getLimit = (value: unknown, defaultLimit = 10) => {
   const parsed = typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;
@@ -128,6 +129,20 @@ export const follow = async (req: AuthRequest, res: Response) => {
         type: "user_followed",
         targetUserId,
         ...getActivityRequestContext(req),
+      });
+      await createNotification({
+        recipientId: targetUserId,
+        actorId: req.userId!,
+        type: "user_followed",
+        message: "Someone followed you.",
+      });
+    }
+    if (result === "requested") {
+      await createNotification({
+        recipientId: targetUserId,
+        actorId: req.userId!,
+        type: "follow_request_received",
+        message: "Someone requested to follow you.",
       });
     }
     res.status(200).json({
@@ -247,6 +262,12 @@ export const acceptRequest = async (req: AuthRequest, res: Response) => {
       type: "user_followed",
       targetUserId: req.userId!,
       ...getActivityRequestContext(req),
+    });
+    await createNotification({
+      recipientId: req.params.requesterId,
+      actorId: req.userId!,
+      type: "follow_request_accepted",
+      message: "Your follow request was accepted.",
     });
     res.status(200).json({ message: "Follow request accepted" });
   } catch (error) {

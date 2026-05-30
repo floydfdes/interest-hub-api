@@ -5,6 +5,7 @@ const mockReportFindOne = jest.fn();
 const mockReportCreate = jest.fn();
 const mockReportUpdateMany = jest.fn();
 const mockFindById = jest.fn();
+const mockCreateNotification = jest.fn();
 
 jest.mock("../models/Post", () => ({
   __esModule: true,
@@ -33,6 +34,10 @@ jest.mock("../models/Report", () => ({
   },
 }));
 
+jest.mock("../services/notificationService", () => ({
+  createNotification: mockCreateNotification,
+}));
+
 import {
   advancedSearchPostsService,
   createPostService,
@@ -47,6 +52,7 @@ describe("post search and tags", () => {
     mockCreate.mockResolvedValue({});
     mockFindById.mockResolvedValue(null);
     mockReportFindOne.mockResolvedValue(null);
+    mockCreateNotification.mockResolvedValue({});
   });
 
   it("normalizes tags when a post is created", async () => {
@@ -66,15 +72,16 @@ describe("post search and tags", () => {
 
   it("marks posts with bad language for admin review", async () => {
     const postId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439014");
+    const authorId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439011");
     const flaggedWord = String.fromCharCode(115, 104, 105, 116);
-    mockCreate.mockResolvedValueOnce({ _id: postId });
+    mockCreate.mockResolvedValueOnce({ _id: postId, author: authorId });
 
     await createPostService({
       title: "Post",
       content: `This is ${flaggedWord}`,
       image: "image",
       category: "Technology",
-      author: new mongoose.Types.ObjectId("507f1f77bcf86cd799439011"),
+      author: authorId,
       tags: [],
     });
 
@@ -91,6 +98,12 @@ describe("post search and tags", () => {
       reason: "bad_language",
       source: "system",
       details: "Automatically flagged for bad language review",
+    });
+    expect(mockCreateNotification).toHaveBeenCalledWith({
+      recipientId: authorId,
+      type: "post_under_review",
+      postId,
+      message: "Your post is under review and hidden until moderation is complete.",
     });
   });
 

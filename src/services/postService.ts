@@ -10,6 +10,7 @@ import {
   createAutoModerationReport,
   dismissAutoModerationReport,
 } from "./contentModerationService";
+import { createNotification } from "./notificationService";
 
 type CreatePostData = Pick<IPost, "title" | "content" | "category" | "author"> & {
   image: string;
@@ -66,6 +67,12 @@ export const createPostService = async (postData: CreatePostData) => {
     await createAutoModerationReport({
       targetType: "post",
       targetId: post._id as mongoose.Types.ObjectId,
+    });
+    await createNotification({
+      recipientId: post.author as mongoose.Types.ObjectId,
+      type: "post_under_review",
+      postId: post._id as mongoose.Types.ObjectId,
+      message: "Your post is under review and hidden until moderation is complete.",
     });
   }
 
@@ -510,6 +517,12 @@ export const updatePostService = async (id: string, userId: string, updates: Upd
     await createAutoModerationReport({
       targetType: "post",
       targetId: post._id as mongoose.Types.ObjectId,
+    });
+    await createNotification({
+      recipientId: post.author as mongoose.Types.ObjectId,
+      type: "post_under_review",
+      postId: post._id as mongoose.Types.ObjectId,
+      message: "Your post edit is under review and hidden until moderation is complete.",
     });
   } else {
     await dismissAutoModerationReport({
