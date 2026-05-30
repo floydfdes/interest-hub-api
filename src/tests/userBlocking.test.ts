@@ -1,11 +1,19 @@
 import mongoose from "mongoose";
 
 const mockUserFindOne = jest.fn();
+const mockPostCountDocuments = jest.fn();
 
 jest.mock("../models/User", () => ({
   __esModule: true,
   default: {
     findOne: mockUserFindOne,
+  },
+}));
+
+jest.mock("../models/Post", () => ({
+  __esModule: true,
+  default: {
+    countDocuments: mockPostCountDocuments,
   },
 }));
 
@@ -43,6 +51,7 @@ const createUser = (id: mongoose.Types.ObjectId) => ({
 describe("personal user muting", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPostCountDocuments.mockResolvedValue(3);
   });
 
   it("mutes a user without removing a follow relationship", async () => {
@@ -221,6 +230,29 @@ describe("private profiles", () => {
     );
     expect(profile).not.toHaveProperty("bio");
     expect(profile).not.toHaveProperty("interests");
+    expect(profile).not.toHaveProperty("postsCount");
+    expect(mockPostCountDocuments).not.toHaveBeenCalled();
+  });
+
+  it("returns visible post count with an accessible profile", async () => {
+    const target = {
+      ...createUser(targetId),
+      name: "Public User",
+      profilePic: null,
+      bio: "hello",
+      interests: ["travel"],
+    };
+    const select = jest.fn().mockResolvedValue(target);
+    mockUserFindOne.mockReturnValueOnce({ select });
+
+    const profile = await getUserById(targetId.toString(), userId.toString());
+
+    expect(profile).toEqual(expect.objectContaining({ canViewProfile: true, postsCount: 3 }));
+    expect(mockPostCountDocuments).toHaveBeenCalledWith({
+      author: targetId,
+      isArchived: { $ne: true },
+      isModerationHidden: { $ne: true },
+    });
   });
 
   it("does not expose a private profile follower list to a stranger", async () => {

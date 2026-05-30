@@ -1180,7 +1180,7 @@
                     { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
                 ],
                 "responses": {
-                    "200": { "description": "Profile returned; canViewProfile is false when a private profile is not accessible" },
+                    "200": { "description": "Profile returned. Accessible profiles include postsCount for non-archived, non-moderation-hidden posts; canViewProfile is false when a private profile is not accessible." },
                     "404": { "description": "User not found" }
                 }
             }

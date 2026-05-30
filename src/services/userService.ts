@@ -1,3 +1,4 @@
+import Post from "../models/Post";
 import User from "../models/User";
 import { uploadImageToCloudinary } from "../utils/uploadImage";
 import { paginatedResponse, PaginationParams } from "../utils/pagination";
@@ -36,9 +37,16 @@ export const getUserById = async (id: string, viewerId?: string) => {
     return { ...baseProfile, canViewProfile: false };
   }
 
+  const postsCount = await Post.countDocuments({
+    author: user._id,
+    isArchived: { $ne: true },
+    isModerationHidden: { $ne: true },
+  });
+
   return {
     ...baseProfile,
     canViewProfile: true,
+    postsCount,
     bio: user.bio,
     interests: user.interests,
   };
