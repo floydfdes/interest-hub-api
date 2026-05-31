@@ -35,6 +35,10 @@
             "description": "Tag discovery and tag-based post browsing"
         },
         {
+            "name": "Shares",
+            "description": "Post and profile sharing between users. Comment sharing is planned but not enabled yet."
+        },
+        {
             "name": "Admin",
             "description": "Administrator dashboard and moderation operations"
         }
@@ -2398,6 +2402,67 @@
                 ],
                 "responses": {
                     "200": { "description": "Paginated lightweight public posts for the tag" }
+                }
+            }
+        },
+        "/api/shares": {
+            "post": {
+                "tags": ["Shares"],
+                "summary": "Share a post or profile with another user",
+                "description": "Creates an inbox share and notification. targetType currently supports post and profile. Comment sharing is a TODO and is not enabled yet.",
+                "security": [{ "bearerAuth": [] }],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["recipientId", "targetType", "targetId"],
+                                "properties": {
+                                    "recipientId": { "type": "string" },
+                                    "targetType": { "type": "string", "enum": ["post", "profile"] },
+                                    "targetId": { "type": "string" },
+                                    "message": { "type": "string", "maxLength": 500 }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": { "description": "Share created" },
+                    "400": { "description": "Invalid share request or recipient cannot view target" },
+                    "401": { "description": "Unauthorized" },
+                    "404": { "description": "Share target or recipient not found" }
+                }
+            }
+        },
+        "/api/shares/received": {
+            "get": {
+                "tags": ["Shares"],
+                "summary": "Get shares received by the authenticated user",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+                    { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 } }
+                ],
+                "responses": {
+                    "200": { "description": "Paginated received shares" },
+                    "401": { "description": "Unauthorized" }
+                }
+            }
+        },
+        "/api/shares/sent": {
+            "get": {
+                "tags": ["Shares"],
+                "summary": "Get shares sent by the authenticated user",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+                    { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 } }
+                ],
+                "responses": {
+                    "200": { "description": "Paginated sent shares" },
+                    "401": { "description": "Unauthorized" }
                 }
             }
         },

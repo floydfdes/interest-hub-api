@@ -17,6 +17,7 @@ import contactRoutes from "./routes/contactRoutes";
 import notificationRoutes from "./routes/notificationRoutes";
 import postRoutes from "./routes/postRoutes";
 import reportRoutes from "./routes/reportRoutes";
+import shareRoutes from "./routes/shareRoutes";
 import tagRoutes from "./routes/tagRoutes";
 import userRoutes from "./routes/userRoutes";
 import logger, { logError } from "./utils/logger";
@@ -58,6 +59,7 @@ app.use("/api/comments", commentRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/tags", tagRoutes);
+app.use("/api/shares", shareRoutes);
 app.use("/api/contact", contactRoutes);
 
 app.get("/api/health", (_req: Request, res: Response) => {

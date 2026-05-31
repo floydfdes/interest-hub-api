@@ -8,6 +8,8 @@ export const NOTIFICATION_TYPES = [
   "comment_created",
   "reply_created",
   "post_under_review",
+  "post_shared",
+  "profile_shared",
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -18,6 +20,7 @@ export interface INotification extends Document {
   type: NotificationType;
   post?: Types.ObjectId;
   comment?: Types.ObjectId;
+  targetUser?: Types.ObjectId;
   message: string;
   isRead: boolean;
   readAt?: Date;
@@ -32,6 +35,7 @@ const NotificationSchema = new Schema<INotification>(
     type: { type: String, enum: NOTIFICATION_TYPES, required: true, index: true },
     post: { type: Schema.Types.ObjectId, ref: "Post" },
     comment: { type: Schema.Types.ObjectId, ref: "Comment" },
+    targetUser: { type: Schema.Types.ObjectId, ref: "User" },
     message: { type: String, required: true, maxlength: 240 },
     isRead: { type: Boolean, default: false, index: true },
     readAt: { type: Date },

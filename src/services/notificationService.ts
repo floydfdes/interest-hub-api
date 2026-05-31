@@ -8,6 +8,7 @@ interface CreateNotificationInput {
   type: NotificationType;
   postId?: string | Types.ObjectId;
   commentId?: string | Types.ObjectId;
+  targetUserId?: string | Types.ObjectId;
   message: string;
 }
 
@@ -20,6 +21,7 @@ export const createNotification = async ({
   type,
   postId,
   commentId,
+  targetUserId,
   message,
 }: CreateNotificationInput) => {
   if (actorId && toObjectId(recipientId).equals(toObjectId(actorId))) return null;
@@ -30,6 +32,7 @@ export const createNotification = async ({
     type,
     ...(postId && { post: toObjectId(postId) }),
     ...(commentId && { comment: toObjectId(commentId) }),
+    ...(targetUserId && { targetUser: toObjectId(targetUserId) }),
     message,
   });
 };
@@ -43,7 +46,8 @@ export const getNotificationsService = async (userId: string, pagination: Pagina
       .limit(pagination.limit)
       .populate("actor", "name profilePic")
       .populate("post", "title image")
-      .populate("comment", "content"),
+      .populate("comment", "content")
+      .populate("targetUser", "name profilePic isPrivate"),
     Notification.countDocuments(filter),
   ]);
 

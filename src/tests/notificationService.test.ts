@@ -6,8 +6,10 @@ const mockNotificationDeleteMany = jest.fn();
 const mockNotificationFindOneAndDelete = jest.fn();
 const mockNotificationFindOneAndUpdate = jest.fn();
 const mockNotificationUpdateMany = jest.fn();
+const mockPopulateTargetUser = jest.fn();
 const mockPopulateComment = jest.fn();
 const mockPopulatePost = jest.fn(() => ({ populate: mockPopulateComment }));
+mockPopulateComment.mockReturnValue({ populate: mockPopulateTargetUser });
 const mockPopulateActor = jest.fn(() => ({ populate: mockPopulatePost }));
 const mockLimit = jest.fn(() => ({ populate: mockPopulateActor }));
 const mockSkip = jest.fn(() => ({ limit: mockLimit }));
@@ -47,7 +49,7 @@ describe("notificationService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockPopulateComment.mockResolvedValue([]);
+    mockPopulateTargetUser.mockResolvedValue([]);
     mockNotificationCountDocuments.mockResolvedValue(2);
   });
 
@@ -99,6 +101,7 @@ describe("notificationService", () => {
     expect(mockPopulateActor).toHaveBeenCalledWith("actor", "name profilePic");
     expect(mockPopulatePost).toHaveBeenCalledWith("post", "title image");
     expect(mockPopulateComment).toHaveBeenCalledWith("comment", "content");
+    expect(mockPopulateTargetUser).toHaveBeenCalledWith("targetUser", "name profilePic isPrivate");
     expect(result.pagination.total).toBe(2);
   });
 
