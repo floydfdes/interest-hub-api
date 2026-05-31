@@ -2,6 +2,8 @@ import mongoose from "mongoose";
 
 const mockNotificationCreate = jest.fn();
 const mockNotificationCountDocuments = jest.fn();
+const mockNotificationDeleteMany = jest.fn();
+const mockNotificationFindOneAndDelete = jest.fn();
 const mockNotificationFindOneAndUpdate = jest.fn();
 const mockNotificationUpdateMany = jest.fn();
 const mockPopulateComment = jest.fn();
@@ -17,18 +19,25 @@ jest.mock("../models/Notification", () => ({
   default: {
     create: mockNotificationCreate,
     countDocuments: mockNotificationCountDocuments,
+    deleteMany: mockNotificationDeleteMany,
     find: mockNotificationFind,
+    findOneAndDelete: mockNotificationFindOneAndDelete,
     findOneAndUpdate: mockNotificationFindOneAndUpdate,
     updateMany: mockNotificationUpdateMany,
   },
 }));
 
 import {
+  clearAllNotificationsService,
+  clearReadNotificationsService,
   createNotification,
+  deleteNotificationService,
   getNotificationsService,
   getUnreadNotificationCountService,
+  markAllNotificationsUnreadService,
   markAllNotificationsReadService,
   markNotificationReadService,
+  markNotificationUnreadService,
 } from "../services/notificationService";
 
 describe("notificationService", () => {
@@ -113,6 +122,16 @@ describe("notificationService", () => {
     );
   });
 
+  it("marks one notification unread for the owner", async () => {
+    await markNotificationUnreadService(recipientId.toString(), "notification-id");
+
+    expect(mockNotificationFindOneAndUpdate).toHaveBeenCalledWith(
+      { _id: "notification-id", recipient: recipientId.toString() },
+      { $set: { isRead: false }, $unset: { readAt: "" } },
+      { new: true }
+    );
+  });
+
   it("marks all unread notifications read", async () => {
     mockNotificationUpdateMany.mockResolvedValueOnce({ modifiedCount: 3 });
 
@@ -123,5 +142,49 @@ describe("notificationService", () => {
       { recipient: recipientId.toString(), isRead: false },
       { $set: { isRead: true, readAt: expect.any(Date) } }
     );
+  });
+
+  it("marks all read notifications unread", async () => {
+    mockNotificationUpdateMany.mockResolvedValueOnce({ modifiedCount: 4 });
+
+    await expect(markAllNotificationsUnreadService(recipientId.toString())).resolves.toEqual({
+      updated: 4,
+    });
+    expect(mockNotificationUpdateMany).toHaveBeenCalledWith(
+      { recipient: recipientId.toString(), isRead: true },
+      { $set: { isRead: false }, $unset: { readAt: "" } }
+    );
+  });
+
+  it("deletes one notification for the owner", async () => {
+    await deleteNotificationService(recipientId.toString(), "notification-id");
+
+    expect(mockNotificationFindOneAndDelete).toHaveBeenCalledWith({
+      _id: "notification-id",
+      recipient: recipientId.toString(),
+    });
+  });
+
+  it("clears read notifications for the owner", async () => {
+    mockNotificationDeleteMany.mockResolvedValueOnce({ deletedCount: 5 });
+
+    await expect(clearReadNotificationsService(recipientId.toString())).resolves.toEqual({
+      deleted: 5,
+    });
+    expect(mockNotificationDeleteMany).toHaveBeenCalledWith({
+      recipient: recipientId.toString(),
+      isRead: true,
+    });
+  });
+
+  it("clears all notifications for the owner", async () => {
+    mockNotificationDeleteMany.mockResolvedValueOnce({ deletedCount: 7 });
+
+    await expect(clearAllNotificationsService(recipientId.toString())).resolves.toEqual({
+      deleted: 7,
+    });
+    expect(mockNotificationDeleteMany).toHaveBeenCalledWith({
+      recipient: recipientId.toString(),
+    });
   });
 });

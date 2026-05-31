@@ -2253,6 +2253,15 @@
                     "200": { "description": "Paginated notifications" },
                     "401": { "description": "Unauthorized" }
                 }
+            },
+            "delete": {
+                "tags": ["Notifications"],
+                "summary": "Clear all notifications",
+                "security": [{ "bearerAuth": [] }],
+                "responses": {
+                    "200": { "description": "All notifications deleted" },
+                    "401": { "description": "Unauthorized" }
+                }
             }
         },
         "/api/notifications/unread-count": {
@@ -2280,6 +2289,20 @@
                 }
             }
         },
+        "/api/notifications/{id}/unread": {
+            "patch": {
+                "tags": ["Notifications"],
+                "summary": "Mark one notification as unread",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+                ],
+                "responses": {
+                    "200": { "description": "Notification marked unread" },
+                    "404": { "description": "Notification not found" }
+                }
+            }
+        },
         "/api/notifications/read-all": {
             "patch": {
                 "tags": ["Notifications"],
@@ -2288,6 +2311,42 @@
                 "responses": {
                     "200": { "description": "Unread notifications marked read" },
                     "401": { "description": "Unauthorized" }
+                }
+            }
+        },
+        "/api/notifications/read": {
+            "delete": {
+                "tags": ["Notifications"],
+                "summary": "Clear all read notifications",
+                "security": [{ "bearerAuth": [] }],
+                "responses": {
+                    "200": { "description": "Read notifications deleted" },
+                    "401": { "description": "Unauthorized" }
+                }
+            }
+        },
+        "/api/notifications/unread-all": {
+            "patch": {
+                "tags": ["Notifications"],
+                "summary": "Mark all notifications as unread",
+                "security": [{ "bearerAuth": [] }],
+                "responses": {
+                    "200": { "description": "Read notifications marked unread" },
+                    "401": { "description": "Unauthorized" }
+                }
+            }
+        },
+        "/api/notifications/{id}": {
+            "delete": {
+                "tags": ["Notifications"],
+                "summary": "Delete one notification",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+                ],
+                "responses": {
+                    "200": { "description": "Notification deleted" },
+                    "404": { "description": "Notification not found" }
                 }
             }
         },

@@ -63,6 +63,14 @@ export const markNotificationReadService = async (userId: string, notificationId
   );
 };
 
+export const markNotificationUnreadService = async (userId: string, notificationId: string) => {
+  return Notification.findOneAndUpdate(
+    { _id: notificationId, recipient: userId },
+    { $set: { isRead: false }, $unset: { readAt: "" } },
+    { new: true }
+  );
+};
+
 export const markAllNotificationsReadService = async (userId: string) => {
   const result = await Notification.updateMany(
     { recipient: userId, isRead: false },
@@ -70,4 +78,27 @@ export const markAllNotificationsReadService = async (userId: string) => {
   );
 
   return { updated: result.modifiedCount };
+};
+
+export const markAllNotificationsUnreadService = async (userId: string) => {
+  const result = await Notification.updateMany(
+    { recipient: userId, isRead: true },
+    { $set: { isRead: false }, $unset: { readAt: "" } }
+  );
+
+  return { updated: result.modifiedCount };
+};
+
+export const deleteNotificationService = async (userId: string, notificationId: string) => {
+  return Notification.findOneAndDelete({ _id: notificationId, recipient: userId });
+};
+
+export const clearReadNotificationsService = async (userId: string) => {
+  const result = await Notification.deleteMany({ recipient: userId, isRead: true });
+  return { deleted: result.deletedCount };
+};
+
+export const clearAllNotificationsService = async (userId: string) => {
+  const result = await Notification.deleteMany({ recipient: userId });
+  return { deleted: result.deletedCount };
 };
