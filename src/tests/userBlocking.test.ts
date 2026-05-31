@@ -255,6 +255,7 @@ describe("private profiles", () => {
       author: targetId,
       isArchived: { $ne: true },
       isModerationHidden: { $ne: true },
+      status: { $ne: "draft" },
     });
   });
 
@@ -276,6 +277,7 @@ describe("private profiles", () => {
       visibility: { $in: ["public"] },
       isArchived: { $ne: true },
       isModerationHidden: { $ne: true },
+      status: { $ne: "draft" },
     });
     expect(result && result.pagination.total).toBe(1);
   });

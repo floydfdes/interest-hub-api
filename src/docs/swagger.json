@@ -402,6 +402,83 @@
                 }
             }
         },
+        "/api/posts/drafts": {
+            "post": {
+                "tags": ["Posts"],
+                "summary": "Save a post draft",
+                "description": "Creates an owner-only draft. Drafts can be incomplete and are not visible in feeds, search, profile posts, tags, shares, or likes until published.",
+                "security": [{ "bearerAuth": [] }],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "title": { "type": "string" },
+                                    "content": { "type": "string" },
+                                    "image": { "type": "string", "description": "Optional base64 encoded image or data URI" },
+                                    "category": { "type": "string" },
+                                    "tags": {
+                                        "type": "array",
+                                        "maxItems": 10,
+                                        "items": { "type": "string", "maxLength": 30, "pattern": "^[a-zA-Z0-9_-]+$" }
+                                    },
+                                    "visibility": { "type": "string", "enum": ["public", "private", "followersOnly"] }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": { "description": "Draft saved" },
+                    "401": { "description": "Unauthorized" }
+                }
+            },
+            "get": {
+                "tags": ["Posts"],
+                "summary": "Get authenticated user's draft posts",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+                    { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 } }
+                ],
+                "responses": {
+                    "200": { "description": "Paginated owner-only draft posts" },
+                    "401": { "description": "Unauthorized" }
+                }
+            }
+        },
+        "/api/posts/drafts/{id}": {
+            "put": {
+                "tags": ["Posts"],
+                "summary": "Update an authenticated user's draft post",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+                ],
+                "responses": {
+                    "200": { "description": "Draft updated" },
+                    "404": { "description": "Draft not found" }
+                }
+            }
+        },
+        "/api/posts/drafts/{id}/publish": {
+            "post": {
+                "tags": ["Posts"],
+                "summary": "Publish a draft post",
+                "description": "Requires title, content, category, and image. Moderation checks run at publish time.",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+                ],
+                "responses": {
+                    "200": { "description": "Draft published" },
+                    "400": { "description": "Draft is missing required fields" },
+                    "404": { "description": "Draft not found" }
+                }
+            }
+        },
         "/api/posts/search": {
             "get": {
                 "tags": [

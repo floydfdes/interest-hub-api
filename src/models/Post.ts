@@ -1,6 +1,7 @@
 import mongoose, { Document, Schema } from "mongoose";
 
 export type Visibility = "public" | "private" | "followersOnly";
+export type PostStatus = "draft" | "published";
 
 export interface IPost extends Document {
   title: string;
@@ -12,6 +13,7 @@ export interface IPost extends Document {
   likes: mongoose.Types.ObjectId[];
   comments: mongoose.Types.ObjectId[];
   visibility: Visibility;
+  status: PostStatus;
   viewCount: number;
   sharedFrom?: mongoose.Types.ObjectId;
   isEdited: boolean;
@@ -26,13 +28,13 @@ export interface IPost extends Document {
 
 const PostSchema = new Schema<IPost>(
   {
-    title: { type: String, required: true },
-    content: { type: String, required: true },
+    title: { type: String, default: "" },
+    content: { type: String, default: "" },
     image: {
       type: String,
-      required: true,
+      default: "",
     },
-    category: { type: String, required: true },
+    category: { type: String, default: "" },
     tags: [{ type: String }],
     author: { type: Schema.Types.ObjectId, ref: "User", required: true },
     likes: [{ type: Schema.Types.ObjectId, ref: "User" }],
@@ -42,6 +44,7 @@ const PostSchema = new Schema<IPost>(
       enum: ["public", "private", "followersOnly"],
       default: "public",
     },
+    status: { type: String, enum: ["draft", "published"], default: "published", index: true },
     viewCount: { type: Number, default: 0 },
     sharedFrom: { type: Schema.Types.ObjectId, ref: "Post", default: null },
     isEdited: { type: Boolean, default: false },

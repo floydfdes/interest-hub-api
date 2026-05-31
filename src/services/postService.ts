@@ -29,6 +29,13 @@ type UpdatePostData = Partial<
   image?: string;
 };
 
+type DraftPostData = Partial<
+  Pick<IPost, "title" | "content" | "category" | "tags" | "visibility">
+> & {
+  image?: string;
+  author: mongoose.Types.ObjectId;
+};
+
 export interface AdvancedPostSearchFilters {
   category?: string;
   title?: string;
@@ -45,6 +52,7 @@ const normalizeTags = (tags: string[] = []): string[] => [
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const publiclyVisible = {
+  status: { $ne: "draft" as const },
   isArchived: { $ne: true },
   isModerationHidden: { $ne: true },
 };
@@ -68,6 +76,7 @@ export const createPostService = async (postData: CreatePostData) => {
     category: postData.category,
     tags: normalizeTags(postData.tags),
     visibility: postData.visibility,
+    status: "published",
     author: postData.author,
     image: cloudinaryUrl,
     isModerationHidden: moderation.needsReview,
@@ -89,6 +98,105 @@ export const createPostService = async (postData: CreatePostData) => {
   }
 
   return formatPostResponse(post, post.author.toString());
+};
+
+export const createDraftPostService = async (draftData: DraftPostData) => {
+  const image = draftData.image
+    ? await uploadImageToCloudinary(draftData.image, "post_images")
+    : "";
+
+  const post = await Post.create({
+    title: draftData.title ?? "",
+    content: draftData.content ?? "",
+    category: draftData.category ?? "",
+    tags: normalizeTags(draftData.tags),
+    visibility: draftData.visibility ?? "public",
+    author: draftData.author,
+    image,
+    status: "draft",
+    isModerationHidden: false,
+    needsReview: false,
+    moderationReasons: [],
+  });
+
+  return formatPostResponse(post, draftData.author.toString());
+};
+
+export const updateDraftPostService = async (
+  id: string,
+  userId: string,
+  updates: Omit<DraftPostData, "author">
+) => {
+  const post = await Post.findOne({ _id: id, author: userId, status: "draft" as const });
+  if (!post) return null;
+
+  if (updates.image) {
+    updates.image = await uploadImageToCloudinary(updates.image, "post_images");
+  }
+
+  Object.assign(post, {
+    ...(typeof updates.title === "string" && { title: updates.title }),
+    ...(typeof updates.content === "string" && { content: updates.content }),
+    ...(typeof updates.category === "string" && { category: updates.category }),
+    ...(Array.isArray(updates.tags) && { tags: normalizeTags(updates.tags) }),
+    ...(updates.visibility && { visibility: updates.visibility }),
+    ...(updates.image && { image: updates.image }),
+    isEdited: true,
+  });
+  await post.save();
+
+  return formatPostResponse(post, userId);
+};
+
+export const getDraftPostsService = async (userId: string, pagination: PaginationParams) => {
+  const filter = { author: userId, status: "draft" as const, isArchived: { $ne: true } };
+  const [posts, total] = await Promise.all([
+    Post.find(filter)
+      .sort({ updatedAt: -1 })
+      .skip(pagination.skip)
+      .limit(pagination.limit)
+      .populate("author", "name profilePic"),
+    Post.countDocuments(filter),
+  ]);
+
+  return formatPaginatedPostResponse(posts, total, pagination, userId);
+};
+
+export const publishDraftPostService = async (id: string, userId: string) => {
+  const post = await Post.findOne({ _id: id, author: userId, status: "draft" as const });
+  if (!post) return null;
+
+  const missingFields = [
+    !post.title?.trim() && "title",
+    !post.content?.trim() && "content",
+    !post.category?.trim() && "category",
+    !post.image?.trim() && "image",
+  ].filter(Boolean);
+  if (missingFields.length > 0) {
+    throw new Error(`Draft is missing required fields: ${missingFields.join(", ")}`);
+  }
+
+  const moderation = analyzeContentModeration([post.title, post.content]);
+  post.status = "published";
+  post.isModerationHidden = moderation.needsReview;
+  post.needsReview = moderation.needsReview;
+  post.moderationReasons = moderation.reasons;
+  await post.save();
+
+  if (moderation.needsReview) {
+    await createAutoModerationReport({
+      targetType: "post",
+      targetId: post._id as mongoose.Types.ObjectId,
+    });
+    await createNotification({
+      recipientId: post.author as mongoose.Types.ObjectId,
+      type: "post_under_review",
+      postId: post._id as mongoose.Types.ObjectId,
+      message: "Your post is under review and hidden until moderation is complete.",
+    });
+  }
+
+  return formatPostResponse(post, userId);
 };
 
 export const getAllPostsService = async (pagination: PaginationParams, viewerId?: string) => {
@@ -434,6 +542,7 @@ export const getPostByIdService = async (id: string, viewerId?: string) => {
   const populatedAuthor = post.author as unknown as { _id?: mongoose.Types.ObjectId };
   const authorId = (populatedAuthor._id ?? post.author).toString();
   const isOwner = authorId === viewerId;
+  if (post.status === "draft" && !isOwner) return null;
   if (post.isModerationHidden && !isOwner) return null;
   if (post.visibility === "private" && !isOwner) return null;
   if (post.visibility === "followersOnly" && !isOwner) {
@@ -459,7 +568,11 @@ export const getArchivedPostsService = async (userId: string, pagination: Pagina
     isModerationHidden: { $ne: true },
   };
   const [posts, total] = await Promise.all([
-    Post.find(filter).sort({ archivedAt: -1 }).skip(pagination.skip).limit(pagination.limit),
+    Post.find(filter)
+      .sort({ archivedAt: -1 })
+      .skip(pagination.skip)
+      .limit(pagination.limit)
+      .populate("author", "name profilePic"),
     Post.countDocuments(filter),
   ]);
   return formatPaginatedPostResponse(posts, total, pagination, userId);

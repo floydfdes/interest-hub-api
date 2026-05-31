@@ -75,6 +75,7 @@ export const createShareService = async ({
   if (targetType === "post") {
     const post = await Post.findOne({
       _id: targetId,
+      status: { $ne: "draft" as const },
       isArchived: { $ne: true },
       isModerationHidden: { $ne: true },
     }).select("author visibility");

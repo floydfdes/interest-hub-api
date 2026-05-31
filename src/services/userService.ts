@@ -40,6 +40,7 @@ export const getUserById = async (id: string, viewerId?: string) => {
 
   const postsCount = await Post.countDocuments({
     author: user._id,
+    status: { $ne: "draft" as const },
     isArchived: { $ne: true },
     isModerationHidden: { $ne: true },
   });
@@ -72,6 +73,7 @@ export const getUserPosts = async (
       : ["public"];
   const filter = {
     author: user._id,
+    status: { $ne: "draft" as const },
     visibility: { $in: visibility },
     isArchived: { $ne: true },
     isModerationHidden: { $ne: true },

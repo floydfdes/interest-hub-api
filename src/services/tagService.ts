@@ -6,6 +6,7 @@ import { formatPaginatedPostResponse } from "../utils/postResponse";
 
 const publiclyVisible = {
   visibility: "public" as Visibility,
+  status: { $ne: "draft" as const },
   isArchived: { $ne: true },
   isModerationHidden: { $ne: true },
 };

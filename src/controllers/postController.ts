@@ -3,6 +3,7 @@ import {
   advancedSearchPostsService,
   archivePostService,
   bookmarkPostService,
+  createDraftPostService,
   createPostService,
   deletePostService,
   getBookmarkedPostsService,
@@ -10,6 +11,7 @@ import {
   getArchivedPostsService,
   getFollowingFeedService,
   getHiddenPostsService,
+  getDraftPostsService,
   getPostByIdService,
   getPostsUnderReviewService,
   getRecommendedPostsService,
@@ -18,10 +20,12 @@ import {
   likePostService,
   getPostLikesService,
   removeBookmarkService,
+  publishDraftPostService,
   searchPostsService,
   TrendingPeriod,
   unlikePostService,
   unhidePostService,
+  updateDraftPostService,
   updatePostService,
 } from "../services/postService";
 
@@ -69,6 +73,82 @@ export const createPost = async (req: AuthRequest, res: Response) => {
       userId: req.userId,
     });
     res.status(500).json({ message: "Failed to create post" });
+  }
+};
+
+export const createDraftPost = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const post = await createDraftPostService({
+      title: req.body.title,
+      content: req.body.content,
+      image: req.body.image,
+      category: req.body.category,
+      tags: req.body.tags,
+      visibility: req.body.visibility,
+      author: new mongoose.Types.ObjectId(req.userId),
+    });
+
+    res.status(201).json(post);
+  } catch (error) {
+    logError("Failed to create draft post", error, { userId: req.userId });
+    res.status(500).json({ message: "Failed to create draft post" });
+  }
+};
+
+export const updateDraftPost = async (req: AuthRequest, res: Response) => {
+  try {
+    const post = await updateDraftPostService(req.params.id, req.userId!, req.body);
+    if (!post) {
+      res.status(404).json({ message: "Draft not found" });
+      return;
+    }
+
+    res.status(200).json(post);
+  } catch (error) {
+    logError("Failed to update draft post", error, { postId: req.params.id, userId: req.userId });
+    res.status(500).json({ message: "Failed to update draft post" });
+  }
+};
+
+export const getDraftPosts = async (req: AuthRequest, res: Response) => {
+  try {
+    res.status(200).json(await getDraftPostsService(req.userId!, getPagination(req.query)));
+  } catch (error) {
+    logError("Failed to fetch draft posts", error, { userId: req.userId });
+    res.status(500).json({ message: "Failed to fetch draft posts" });
+  }
+};
+
+export const publishDraftPost = async (req: AuthRequest, res: Response) => {
+  try {
+    const post = await publishDraftPostService(req.params.id, req.userId!);
+    if (!post) {
+      res.status(404).json({ message: "Draft not found" });
+      return;
+    }
+
+    await recordActivity({
+      actorId: req.userId!,
+      type: "post_created",
+      postId: post._id.toString(),
+      ...getActivityRequestContext(req),
+    });
+
+    res.status(200).json(withModerationNotice(post));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to publish draft";
+    if (message.startsWith("Draft is missing required fields")) {
+      res.status(400).json({ message });
+      return;
+    }
+
+    logError("Failed to publish draft post", error, { postId: req.params.id, userId: req.userId });
+    res.status(500).json({ message: "Failed to publish draft post" });
   }
 };
 

@@ -86,6 +86,7 @@ describe("personal post hiding", () => {
       visibility: "public",
       isArchived: { $ne: true },
       isModerationHidden: { $ne: true },
+      status: { $ne: "draft" },
     });
     expect(result?.pagination.total).toBe(1);
   });
@@ -105,7 +106,14 @@ describe("post archiving", () => {
     };
     mockPostFindById.mockResolvedValueOnce(post);
 
-    await expect(archivePostService(postId.toString(), userId, true)).resolves.toBe(post);
+    await expect(archivePostService(postId.toString(), userId, true)).resolves.toEqual(
+      expect.objectContaining({
+        likesCount: 0,
+        commentsCount: 0,
+        isLikedByMe: false,
+        isSavedByMe: false,
+      })
+    );
     expect(post.isArchived).toBe(true);
     expect(post.archivedAt).toEqual(expect.any(Date));
     expect(post.save).toHaveBeenCalled();

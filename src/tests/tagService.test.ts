@@ -53,6 +53,7 @@ describe("tagService", () => {
         visibility: "public",
         isArchived: { $ne: true },
         isModerationHidden: { $ne: true },
+        status: { $ne: "draft" },
         tags: /^tra/i,
       },
     });
@@ -84,6 +85,7 @@ describe("tagService", () => {
       visibility: "public",
       isArchived: { $ne: true },
       isModerationHidden: { $ne: true },
+      status: { $ne: "draft" },
       tags: "travel",
     });
     expect(result.items[0]).toEqual(

@@ -94,6 +94,7 @@ describe("post discovery services", () => {
       visibility: { $in: ["public", "followersOnly"] },
       isArchived: { $ne: true },
       isModerationHidden: { $ne: true },
+      status: { $ne: "draft" },
     });
     expect(mockPostSort).toHaveBeenCalledWith({ createdAt: -1 });
     expect(mockPostSkip).toHaveBeenCalledWith(20);
@@ -117,6 +118,7 @@ describe("post discovery services", () => {
         visibility: "public",
         isArchived: { $ne: true },
         isModerationHidden: { $ne: true },
+        status: { $ne: "draft" },
         createdAt: { $gte: expect.any(Date) },
       },
     });
@@ -133,6 +135,7 @@ describe("post discovery services", () => {
         visibility: "public",
         isArchived: { $ne: true },
         isModerationHidden: { $ne: true },
+        status: { $ne: "draft" },
         author: { $ne: new mongoose.Types.ObjectId(userId), $nin: [blockedId, mutedId] },
       },
     });
@@ -152,6 +155,7 @@ describe("post discovery services", () => {
         visibility: "public",
         isArchived: { $ne: true },
         isModerationHidden: { $ne: true },
+        status: { $ne: "draft" },
         author: {
           $ne: new mongoose.Types.ObjectId(userId),
           $nin: [blockedId, mutedId, blockingId],
@@ -171,6 +175,7 @@ describe("post discovery services", () => {
       visibility: "public",
       isArchived: { $ne: true },
       isModerationHidden: { $ne: true },
+      status: { $ne: "draft" },
     });
     expect(mockUserFindOneAndUpdate).toHaveBeenCalledWith(
       { _id: userId, isDeleted: false },
@@ -192,6 +197,7 @@ describe("post discovery services", () => {
         visibility: "public",
         isArchived: { $ne: true },
         isModerationHidden: { $ne: true },
+        status: { $ne: "draft" },
       },
       options: { sort: { createdAt: -1 } },
       populate: { path: "author", select: "name profilePic" },

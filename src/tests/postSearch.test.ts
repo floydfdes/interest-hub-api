@@ -167,6 +167,7 @@ describe("post search and tags", () => {
       visibility: "public",
       isArchived: { $ne: true },
       isModerationHidden: { $ne: true },
+      status: { $ne: "draft" },
       $or: [{ title: /C\+\+/i }, { content: /C\+\+/i }, { category: /C\+\+/i }, { tags: /C\+\+/i }],
     });
     expect(mockPopulate).toHaveBeenCalledWith("author", "name profilePic");
@@ -184,6 +185,7 @@ describe("post search and tags", () => {
       visibility: "public",
       isArchived: { $ne: true },
       isModerationHidden: { $ne: true },
+      status: { $ne: "draft" },
       category: /Technology/i,
       title: /Typescript/i,
       content: /service/i,
@@ -198,6 +200,7 @@ describe("post search and tags", () => {
       visibility: "public",
       isArchived: { $ne: true },
       isModerationHidden: { $ne: true },
+      status: { $ne: "draft" },
       title: /only title/i,
     });
   });
