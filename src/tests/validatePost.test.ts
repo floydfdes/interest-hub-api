@@ -63,4 +63,58 @@ describe("updatePostValidation", () => {
       ])
     );
   });
+
+  it("rejects more than 10 tags", async () => {
+    await expect(
+      validateUpdatePost({
+        title: "Updated title",
+        tags: [
+          "one",
+          "two",
+          "three",
+          "four",
+          "five",
+          "six",
+          "seven",
+          "eight",
+          "nine",
+          "ten",
+          "eleven",
+        ],
+      })
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          msg: "Tags must be an array with at most 10 items",
+          path: "tags",
+        }),
+      ])
+    );
+  });
+
+  it("rejects tags with spaces or special characters", async () => {
+    await expect(
+      validateUpdatePost({ title: "Updated title", tags: ["travel photography"] })
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          msg: "Tags can only contain letters, numbers, underscores, and hyphens",
+          path: "tags[0]",
+        }),
+      ])
+    );
+  });
+
+  it("rejects tags longer than 30 characters", async () => {
+    await expect(
+      validateUpdatePost({ title: "Updated title", tags: ["a".repeat(31)] })
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          msg: "Tags cannot be longer than 30 characters",
+          path: "tags[0]",
+        }),
+      ])
+    );
+  });
 });

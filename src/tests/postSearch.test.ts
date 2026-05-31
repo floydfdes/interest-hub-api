@@ -49,7 +49,10 @@ import mongoose from "mongoose";
 describe("post search and tags", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockCreate.mockResolvedValue({});
+    mockCreate.mockResolvedValue({
+      _id: new mongoose.Types.ObjectId("507f1f77bcf86cd799439013"),
+      author: new mongoose.Types.ObjectId("507f1f77bcf86cd799439011"),
+    });
     mockFindById.mockResolvedValue(null);
     mockReportFindOne.mockResolvedValue(null);
     mockCreateNotification.mockResolvedValue({});
@@ -126,7 +129,15 @@ describe("post search and tags", () => {
       updatePostService(postId.toString(), authorId.toString(), {
         content: "Clean updated content",
       })
-    ).resolves.toBe(post);
+    ).resolves.toEqual(
+      expect.objectContaining({
+        _id: postId,
+        likesCount: 0,
+        commentsCount: 0,
+        isLikedByMe: false,
+        isSavedByMe: false,
+      })
+    );
 
     expect(post.isModerationHidden).toBe(false);
     expect(post.needsReview).toBe(false);

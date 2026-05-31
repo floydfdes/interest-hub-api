@@ -1,5 +1,29 @@
 import { body } from "express-validator";
 
+const tagValidation = [
+  body("tags")
+    .optional()
+    .isArray()
+    .withMessage("Tags must be an array")
+    .bail()
+    .custom((tags: unknown[]) => tags.length <= 10)
+    .withMessage("Tags must be an array with at most 10 items"),
+  body("tags.*")
+    .optional()
+    .isString()
+    .withMessage("Each tag must be a string")
+    .trim()
+    .notEmpty()
+    .withMessage("Tags cannot be empty")
+    .isLength({ max: 30 })
+    .withMessage("Tags cannot be longer than 30 characters")
+    .matches(/^[a-zA-Z0-9_-]+$/)
+    .withMessage("Tags can only contain letters, numbers, underscores, and hyphens")
+    .not()
+    .isIn(["null", "undefined"])
+    .withMessage("Tags cannot be null"),
+];
+
 export const createPostValidation = [
   body("title").notEmpty().withMessage("Title is required"),
   body("content").notEmpty().withMessage("Content is required"),
@@ -8,17 +32,7 @@ export const createPostValidation = [
   body("visibility")
     .isIn(["public", "private", "followersOnly"])
     .withMessage("Visibility must be one of: public, private, followersOnly"),
-  body("tags").optional().isArray().withMessage("Tags must be an array"),
-  body("tags.*")
-    .optional()
-    .isString()
-    .withMessage("Each tag must be a string")
-    .trim()
-    .notEmpty()
-    .withMessage("Tags cannot be empty")
-    .not()
-    .equals("null")
-    .withMessage("Tags cannot be null"),
+  ...tagValidation,
 ];
 
 export const updatePostValidation = [
@@ -29,16 +43,6 @@ export const updatePostValidation = [
     .optional()
     .isIn(["public", "private", "followersOnly"])
     .withMessage("Invalid visibility value"),
-  body("tags").optional().isArray().withMessage("Tags must be an array"),
-  body("tags.*")
-    .optional()
-    .isString()
-    .withMessage("Each tag must be a string")
-    .trim()
-    .notEmpty()
-    .withMessage("Tags cannot be empty")
-    .not()
-    .equals("null")
-    .withMessage("Tags cannot be null"),
+  ...tagValidation,
   body("category").optional().isString(),
 ];

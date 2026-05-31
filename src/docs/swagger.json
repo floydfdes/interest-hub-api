@@ -31,6 +31,10 @@
             "description": "User notification inbox"
         },
         {
+            "name": "Tags",
+            "description": "Tag discovery and tag-based post browsing"
+        },
+        {
             "name": "Admin",
             "description": "Administrator dashboard and moderation operations"
         }
@@ -363,9 +367,13 @@
                                     },
                                     "tags": {
                                         "type": "array",
+                                        "maxItems": 10,
                                         "items": {
-                                            "type": "string"
-                                        }
+                                            "type": "string",
+                                            "maxLength": 30,
+                                            "pattern": "^[a-zA-Z0-9_-]+$"
+                                        },
+                                        "description": "Optional URL-friendly tags. Only letters, numbers, underscores, and hyphens are allowed."
                                     },
                                     "visibility": {
                                         "type": "string",
@@ -721,9 +729,13 @@
                                     },
                                     "tags": {
                                         "type": "array",
+                                        "maxItems": 10,
                                         "items": {
-                                            "type": "string"
-                                        }
+                                            "type": "string",
+                                            "maxLength": 30,
+                                            "pattern": "^[a-zA-Z0-9_-]+$"
+                                        },
+                                        "description": "Optional URL-friendly tags. Only letters, numbers, underscores, and hyphens are allowed."
                                     },
                                     "visibility": {
                                         "type": "string",
@@ -2347,6 +2359,45 @@
                 "responses": {
                     "200": { "description": "Notification deleted" },
                     "404": { "description": "Notification not found" }
+                }
+            }
+        },
+        "/api/tags/suggestions": {
+            "get": {
+                "tags": ["Tags"],
+                "summary": "Get tag suggestions",
+                "parameters": [
+                    { "name": "query", "in": "query", "schema": { "type": "string" }, "description": "Optional prefix to match tags" },
+                    { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 10 } }
+                ],
+                "responses": {
+                    "200": { "description": "Popular matching tags with post counts" }
+                }
+            }
+        },
+        "/api/tags/trending": {
+            "get": {
+                "tags": ["Tags"],
+                "summary": "Get trending tags",
+                "parameters": [
+                    { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 } }
+                ],
+                "responses": {
+                    "200": { "description": "Most used public post tags with post counts" }
+                }
+            }
+        },
+        "/api/tags/{tag}/posts": {
+            "get": {
+                "tags": ["Tags"],
+                "summary": "Get public posts for a tag",
+                "parameters": [
+                    { "name": "tag", "in": "path", "required": true, "schema": { "type": "string" } },
+                    { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+                    { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 } }
+                ],
+                "responses": {
+                    "200": { "description": "Paginated lightweight public posts for the tag" }
                 }
             }
         },
