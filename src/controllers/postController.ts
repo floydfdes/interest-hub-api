@@ -72,9 +72,9 @@ export const createPost = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getAllPosts = async (req: Request, res: Response) => {
+export const getAllPosts = async (req: AuthRequest, res: Response) => {
   try {
-    const posts = await getAllPostsService(getPagination(req.query));
+    const posts = await getAllPostsService(getPagination(req.query), req.userId);
 
     res.json(posts);
   } catch (error) {
@@ -83,7 +83,7 @@ export const getAllPosts = async (req: Request, res: Response) => {
   }
 };
 
-export const searchPosts = async (req: Request, res: Response) => {
+export const searchPosts = async (req: AuthRequest, res: Response) => {
   const query = typeof req.query.query === "string" ? req.query.query.trim() : "";
 
   if (!query) {
@@ -92,7 +92,7 @@ export const searchPosts = async (req: Request, res: Response) => {
   }
 
   try {
-    const posts = await searchPostsService(query);
+    const posts = await searchPostsService(query, req.userId);
 
     res.json(posts);
   } catch (error) {
@@ -101,7 +101,7 @@ export const searchPosts = async (req: Request, res: Response) => {
   }
 };
 
-export const advancedSearchPosts = async (req: Request, res: Response) => {
+export const advancedSearchPosts = async (req: AuthRequest, res: Response) => {
   const category = typeof req.query.category === "string" ? req.query.category.trim() : undefined;
   const title = typeof req.query.title === "string" ? req.query.title.trim() : undefined;
   const content = typeof req.query.content === "string" ? req.query.content.trim() : undefined;
@@ -109,12 +109,15 @@ export const advancedSearchPosts = async (req: Request, res: Response) => {
   const tags = rawTags.map((tag) => tag.trim()).filter(Boolean);
 
   try {
-    const posts = await advancedSearchPostsService({
-      category,
-      title,
-      content,
-      tags,
-    });
+    const posts = await advancedSearchPostsService(
+      {
+        category,
+        title,
+        content,
+        tags,
+      },
+      req.userId
+    );
 
     res.json(posts);
   } catch (error) {
@@ -138,7 +141,7 @@ export const getFollowingFeed = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getTrendingPosts = async (req: Request, res: Response) => {
+export const getTrendingPosts = async (req: AuthRequest, res: Response) => {
   const rawPeriod = typeof req.query.period === "string" ? req.query.period : "week";
   const validPeriods: TrendingPeriod[] = ["day", "week", "month", "all"];
 
@@ -150,7 +153,8 @@ export const getTrendingPosts = async (req: Request, res: Response) => {
   try {
     const posts = await getTrendingPostsService(
       rawPeriod as TrendingPeriod,
-      getLimit(req.query.limit)
+      getLimit(req.query.limit),
+      req.userId
     );
     res.json(posts);
   } catch (error) {

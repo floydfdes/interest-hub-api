@@ -321,7 +321,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Paginated public posts returned as items and pagination metadata"
+                        "description": "Paginated public posts returned as items and pagination metadata. Post items are lightweight and include likesCount, commentsCount, isLikedByMe, and isSavedByMe instead of full likes/comments arrays."
                     }
                 }
             },
@@ -408,7 +408,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "List of matching public posts"
+                        "description": "List of matching lightweight public posts with likesCount, commentsCount, isLikedByMe, and isSavedByMe"
                     },
                     "400": {
                         "description": "Query is required"
@@ -458,7 +458,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "List of matching public posts"
+                        "description": "List of matching lightweight public posts with likesCount, commentsCount, isLikedByMe, and isSavedByMe"
                     }
                 }
             }
@@ -497,7 +497,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Paginated public and followers-only posts from followed users, excluding muted, hidden, and archived content"
+                        "description": "Paginated lightweight public and followers-only posts from followed users, excluding muted, hidden, and archived content"
                     },
                     "401": {
                         "description": "Unauthorized"
@@ -537,7 +537,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Posts ranked by recent likes, comments, and views"
+                        "description": "Lightweight posts ranked by recent likes, comments, and views"
                     },
                     "400": {
                         "description": "Invalid period"
@@ -568,7 +568,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Recommended posts excluding blocked, muted, and hidden content"
+                        "description": "Lightweight recommended posts excluding blocked, muted, and hidden content"
                     },
                     "401": {
                         "description": "Unauthorized"
@@ -589,7 +589,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Bookmarked public posts"
+                        "description": "Bookmarked lightweight public posts"
                     },
                     "401": {
                         "description": "Unauthorized"
@@ -631,7 +631,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Paginated public posts hidden by the signed-in user"
+                        "description": "Paginated lightweight public posts hidden by the signed-in user"
                     },
                     "401": {
                         "description": "Unauthorized"
@@ -672,7 +672,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Visible post found; private posts require the owner and followers-only posts require owner or follower access"
+                        "description": "Visible lightweight post found; private posts require the owner and followers-only posts require owner or follower access. Comments are fetched separately from /api/posts/{id}/comments."
                     },
                     "404": {
                         "description": "Post not found"
@@ -904,6 +904,22 @@
                     "404": {
                         "description": "Post not found"
                     }
+                }
+            }
+        },
+        "/api/posts/{id}/comments": {
+            "get": {
+                "tags": ["Comments"],
+                "summary": "Get paginated comments for a visible post",
+                "parameters": [
+                    { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+                    { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+                    { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 } }
+                ],
+                "responses": {
+                    "200": { "description": "Paginated non-moderation-hidden comments with populated users and reply users" },
+                    "403": { "description": "Post comments are not accessible to this viewer" },
+                    "404": { "description": "Post not found" }
                 }
             }
         },
@@ -1195,7 +1211,7 @@
                     { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 } }
                 ],
                 "responses": {
-                    "200": { "description": "Paginated visible profile posts. Public viewers see public posts; followers also see followers-only posts; owners also see private posts." },
+                    "200": { "description": "Paginated lightweight visible profile posts. Public viewers see public posts; followers also see followers-only posts; owners also see private posts." },
                     "403": { "description": "Private profile is not accessible to this viewer" },
                     "404": { "description": "User not found" }
                 }

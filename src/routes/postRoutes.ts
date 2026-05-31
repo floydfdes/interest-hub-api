@@ -27,21 +27,23 @@ import { createPostValidation, updatePostValidation } from "../middleware/valida
 
 import express from "express";
 import authMiddleware, { optionalAuthMiddleware } from "../middleware/authMiddleware";
+import { getPostComments } from "../controllers/commentController";
 import validate from "../middleware/validate";
 
 const router = express.Router();
 
 router.post("/", authMiddleware, createPostValidation, validate, createPost);
-router.get("/", getAllPosts);
-router.get("/search", searchPosts);
-router.get("/advanced-search", advancedSearchPosts);
+router.get("/", optionalAuthMiddleware, getAllPosts);
+router.get("/search", optionalAuthMiddleware, searchPosts);
+router.get("/advanced-search", optionalAuthMiddleware, advancedSearchPosts);
 router.get("/following", authMiddleware, getFollowingFeed);
-router.get("/trending", getTrendingPosts);
+router.get("/trending", optionalAuthMiddleware, getTrendingPosts);
 router.get("/recommended", authMiddleware, getRecommendedPosts);
 router.get("/bookmarks", authMiddleware, getBookmarkedPosts);
 router.get("/hidden", authMiddleware, getHiddenPosts);
 router.get("/archived", authMiddleware, getArchivedPosts);
 router.get("/review", authMiddleware, getPostsUnderReview);
+router.get("/:id/comments", optionalAuthMiddleware, getPostComments);
 router.get("/:id/likes", getPostLikes);
 router.get("/:id", optionalAuthMiddleware, getPostById);
 router.put("/:id", authMiddleware, updatePostValidation, validate, updatePost);

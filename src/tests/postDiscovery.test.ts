@@ -196,7 +196,15 @@ describe("post discovery services", () => {
       options: { sort: { createdAt: -1 } },
       populate: { path: "author", select: "name profilePic" },
     });
-    expect(result).toEqual(savedPosts);
+    expect(result).toEqual([
+      expect.objectContaining({
+        _id: postId,
+        likesCount: 0,
+        commentsCount: 0,
+        isLikedByMe: false,
+        isSavedByMe: true,
+      }),
+    ]);
   });
 
   it("returns a paginated list of users who liked a public post", async () => {
@@ -218,13 +226,29 @@ describe("post discovery services", () => {
   });
 
   it("reports a newly added like only once for activity tracking", async () => {
-    const post = { _id: postId };
+    const post = { _id: postId, likes: [userId] };
     mockPostFindOneAndUpdate.mockResolvedValueOnce(post);
-    expect(await likePostService(postId.toString(), userId)).toEqual({ post, didLike: true });
+    expect(await likePostService(postId.toString(), userId)).toEqual({
+      post: expect.objectContaining({
+        _id: postId,
+        likesCount: 1,
+        commentsCount: 0,
+        isLikedByMe: true,
+      }),
+      didLike: true,
+    });
 
     mockPostFindOneAndUpdate.mockResolvedValueOnce(null);
     mockPostFindById.mockResolvedValueOnce(post);
-    expect(await likePostService(postId.toString(), userId)).toEqual({ post, didLike: false });
+    expect(await likePostService(postId.toString(), userId)).toEqual({
+      post: expect.objectContaining({
+        _id: postId,
+        likesCount: 1,
+        commentsCount: 0,
+        isLikedByMe: true,
+      }),
+      didLike: false,
+    });
   });
 });
 

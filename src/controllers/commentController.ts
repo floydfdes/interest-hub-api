@@ -5,6 +5,7 @@ import {
   deleteReplyService,
   editCommentService,
   editReplyService,
+  getPostCommentsService,
   likeCommentService,
   likeReplyService,
   replyToCommentService,
@@ -16,6 +17,33 @@ import {
 import { AuthRequest } from "../middleware/authMiddleware";
 import { logError } from "../utils/logger";
 import { withModerationNotice } from "../utils/moderationResponse";
+import { getPagination } from "../utils/pagination";
+
+export const getPostComments = async (req: AuthRequest, res: Response) => {
+  try {
+    const comments = await getPostCommentsService(
+      req.params.id,
+      getPagination(req.query),
+      req.userId
+    );
+    if (comments === null) {
+      res.status(404).json({ message: "Post not found" });
+      return;
+    }
+    if (comments === false) {
+      res.status(403).json({ message: "Post comments are not accessible" });
+      return;
+    }
+
+    res.status(200).json(comments);
+  } catch (error) {
+    logError("Failed to fetch post comments", error, {
+      postId: req.params.id,
+      userId: req.userId,
+    });
+    res.status(500).json({ message: "Failed to fetch post comments" });
+  }
+};
 
 export const createComment = async (req: AuthRequest, res: Response) => {
   try {

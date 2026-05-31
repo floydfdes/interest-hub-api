@@ -2,6 +2,7 @@ import Post, { Visibility } from "../models/Post";
 import User from "../models/User";
 import { uploadImageToCloudinary } from "../utils/uploadImage";
 import { paginatedResponse, PaginationParams } from "../utils/pagination";
+import { formatPaginatedPostResponse } from "../utils/postResponse";
 
 const includesUser = (ids: { equals: (id: string) => boolean }[] = [], userId?: string) =>
   Boolean(userId && ids.some((id) => id.equals(userId)));
@@ -57,7 +58,9 @@ export const getUserPosts = async (
   pagination: PaginationParams,
   viewerId?: string
 ) => {
-  const user = await User.findOne({ _id: userId, isDeleted: false }).select("followers isPrivate");
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select(
+    "followers isPrivate savedPosts"
+  );
   if (!user) return null;
   if (!canViewPrivateAccount(user, viewerId)) return false;
 
@@ -82,7 +85,7 @@ export const getUserPosts = async (
     Post.countDocuments(filter),
   ]);
 
-  return paginatedResponse(posts, total, pagination);
+  return formatPaginatedPostResponse(posts, total, pagination, viewerId, user.savedPosts);
 };
 
 export const updateUserProfile = async (

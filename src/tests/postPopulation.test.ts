@@ -1,5 +1,4 @@
-const mockPopulateComments = jest.fn().mockResolvedValue(null);
-const mockPopulateAuthor = jest.fn(() => ({ populate: mockPopulateComments }));
+const mockPopulateAuthor = jest.fn().mockResolvedValue(null);
 const mockFindOne = jest.fn(() => ({ populate: mockPopulateAuthor }));
 const mockUserSelect = jest.fn();
 const mockUserFindOne = jest.fn(() => ({ select: mockUserSelect }));
@@ -29,21 +28,14 @@ import mongoose from "mongoose";
 describe("getPostByIdService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockPopulateComments.mockResolvedValue(null);
+    mockPopulateAuthor.mockResolvedValue(null);
   });
 
-  it("populates authors for comments and nested replies", async () => {
+  it("populates only the post author and leaves comments for the comments endpoint", async () => {
     await getPostByIdService("507f1f77bcf86cd799439011");
 
-    expect(mockPopulateComments).toHaveBeenCalledWith({
-      path: "comments",
-      model: "Comment",
-      match: { isModerationHidden: { $ne: true } },
-      populate: [
-        { path: "user", select: "name profilePic" },
-        { path: "replies.user", select: "name profilePic" },
-      ],
-    });
+    expect(mockPopulateAuthor).toHaveBeenCalledWith("author", "name profilePic");
+    expect(mockPopulateAuthor).toHaveBeenCalledTimes(1);
   });
 
   it("does not reveal a private post to a viewer other than its owner", async () => {
@@ -54,7 +46,7 @@ describe("getPostByIdService", () => {
       viewCount: 0,
       save: jest.fn(),
     };
-    mockPopulateComments.mockResolvedValueOnce(post);
+    mockPopulateAuthor.mockResolvedValueOnce(post);
 
     await expect(
       getPostByIdService("post-id", new mongoose.Types.ObjectId().toString())
@@ -71,7 +63,7 @@ describe("getPostByIdService", () => {
       viewCount: 0,
       save: jest.fn(),
     };
-    mockPopulateComments.mockResolvedValueOnce(post);
+    mockPopulateAuthor.mockResolvedValueOnce(post);
 
     await expect(
       getPostByIdService("post-id", new mongoose.Types.ObjectId().toString())
@@ -82,6 +74,7 @@ describe("getPostByIdService", () => {
   it("allows an owner to read a moderation-hidden post for editing", async () => {
     const authorId = new mongoose.Types.ObjectId();
     const post = {
+      _id: new mongoose.Types.ObjectId(),
       author: { _id: authorId },
       visibility: "public",
       isModerationHidden: true,
@@ -89,9 +82,17 @@ describe("getPostByIdService", () => {
       viewCount: 0,
       save: jest.fn(),
     };
-    mockPopulateComments.mockResolvedValueOnce(post);
+    mockPopulateAuthor.mockResolvedValueOnce(post);
 
-    await expect(getPostByIdService("post-id", authorId.toString())).resolves.toBe(post);
+    await expect(getPostByIdService("post-id", authorId.toString())).resolves.toEqual(
+      expect.objectContaining({
+        _id: post._id,
+        likesCount: 0,
+        commentsCount: 0,
+        isLikedByMe: false,
+        isSavedByMe: false,
+      })
+    );
     expect(post.viewCount).toBe(1);
     expect(post.save).toHaveBeenCalled();
   });
@@ -109,15 +110,18 @@ describe("getPostByIdService", () => {
     const authorId = new mongoose.Types.ObjectId();
     const viewerId = new mongoose.Types.ObjectId().toString();
     const post = {
+      _id: new mongoose.Types.ObjectId(),
       author: { _id: authorId },
       visibility: "followersOnly",
       viewCount: 0,
       save: jest.fn(),
     };
-    mockPopulateComments.mockResolvedValueOnce(post);
+    mockPopulateAuthor.mockResolvedValueOnce(post);
     mockUserSelect.mockResolvedValueOnce({ _id: authorId });
 
-    await expect(getPostByIdService("post-id", viewerId)).resolves.toBe(post);
+    await expect(getPostByIdService("post-id", viewerId)).resolves.toEqual(
+      expect.objectContaining({ _id: post._id, commentsCount: 0, likesCount: 0 })
+    );
     expect(mockUserFindOne).toHaveBeenCalledWith({
       _id: authorId.toString(),
       followers: viewerId,

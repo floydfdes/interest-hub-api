@@ -6,6 +6,11 @@ import User from "../models/User";
 import { uploadImageToCloudinary } from "../utils/uploadImage";
 import { paginatedResponse, PaginationParams } from "../utils/pagination";
 import {
+  formatPaginatedPostResponse,
+  formatPostListResponse,
+  formatPostResponse,
+} from "../utils/postResponse";
+import {
   analyzeContentModeration,
   createAutoModerationReport,
   dismissAutoModerationReport,
@@ -44,6 +49,13 @@ const publiclyVisible = {
   isModerationHidden: { $ne: true },
 };
 
+const getSavedPostIds = async (viewerId?: string) => {
+  if (!viewerId) return [];
+
+  const user = await User.findOne({ _id: viewerId, isDeleted: false }).select("savedPosts");
+  return user?.savedPosts ?? [];
+};
+
 export const createPostService = async (postData: CreatePostData) => {
   if (!postData.image) throw new Error("Image is required");
 
@@ -76,24 +88,25 @@ export const createPostService = async (postData: CreatePostData) => {
     });
   }
 
-  return post;
+  return formatPostResponse(post, post.author.toString());
 };
 
-export const getAllPostsService = async (pagination: PaginationParams) => {
+export const getAllPostsService = async (pagination: PaginationParams, viewerId?: string) => {
   const filter = { visibility: "public" as Visibility, ...publiclyVisible };
-  const [posts, total] = await Promise.all([
+  const [posts, total, savedPostIds] = await Promise.all([
     Post.find(filter)
       .sort({ createdAt: -1 })
       .skip(pagination.skip)
       .limit(pagination.limit)
       .populate("author", "name profilePic"),
     Post.countDocuments(filter),
+    getSavedPostIds(viewerId),
   ]);
 
-  return paginatedResponse(posts, total, pagination);
+  return formatPaginatedPostResponse(posts, total, pagination, viewerId, savedPostIds);
 };
 
-export const searchPostsService = async (query: string) => {
+export const searchPostsService = async (query: string, viewerId?: string) => {
   const filters: Record<string, unknown> = { visibility: "public", ...publiclyVisible };
   const trimmedQuery = query.trim();
 
@@ -107,15 +120,18 @@ export const searchPostsService = async (query: string) => {
     ];
   }
 
-  return Post.find(filters).populate("author", "name profilePic");
+  const [posts, savedPostIds] = await Promise.all([
+    Post.find(filters).populate("author", "name profilePic"),
+    getSavedPostIds(viewerId),
+  ]);
+
+  return formatPostListResponse(posts, viewerId, savedPostIds);
 };
 
-export const advancedSearchPostsService = async ({
-  category,
-  title,
-  content,
-  tags,
-}: AdvancedPostSearchFilters) => {
+export const advancedSearchPostsService = async (
+  { category, title, content, tags }: AdvancedPostSearchFilters,
+  viewerId?: string
+) => {
   const filters: Record<string, unknown> = { visibility: "public", ...publiclyVisible };
   const trimmedCategory = category?.trim();
   const trimmedTitle = title?.trim();
@@ -140,12 +156,17 @@ export const advancedSearchPostsService = async ({
     };
   }
 
-  return Post.find(filters).populate("author", "name profilePic");
+  const [posts, savedPostIds] = await Promise.all([
+    Post.find(filters).populate("author", "name profilePic"),
+    getSavedPostIds(viewerId),
+  ]);
+
+  return formatPostListResponse(posts, viewerId, savedPostIds);
 };
 
 export const getFollowingFeedService = async (userId: string, pagination: PaginationParams) => {
   const user = await User.findOne({ _id: userId, isDeleted: false }).select(
-    "following blockedUsers mutedUsers hiddenPosts"
+    "following blockedUsers mutedUsers hiddenPosts savedPosts"
   );
   if (!user) return null;
 
@@ -167,7 +188,7 @@ export const getFollowingFeedService = async (userId: string, pagination: Pagina
     Post.countDocuments(filter),
   ]);
 
-  return paginatedResponse(posts, total, pagination);
+  return formatPaginatedPostResponse(posts, total, pagination, userId, user.savedPosts);
 };
 
 const periodInMilliseconds: Record<Exclude<TrendingPeriod, "all">, number> = {
@@ -199,35 +220,44 @@ const authorLookupStages: mongoose.PipelineStage[] = [
   },
 ];
 
-export const getTrendingPostsService = async (period: TrendingPeriod, limit: number) => {
+export const getTrendingPostsService = async (
+  period: TrendingPeriod,
+  limit: number,
+  viewerId?: string
+) => {
   const match: Record<string, unknown> = { visibility: "public", ...publiclyVisible };
 
   if (period !== "all") {
     match.createdAt = { $gte: new Date(Date.now() - periodInMilliseconds[period]) };
   }
 
-  return Post.aggregate([
-    { $match: match },
-    {
-      $addFields: {
-        trendingScore: {
-          $add: [
-            { $multiply: [{ $size: { $ifNull: ["$likes", []] } }, 3] },
-            { $multiply: [{ $size: { $ifNull: ["$comments", []] } }, 4] },
-            { $multiply: [{ $ifNull: ["$viewCount", 0] }, 0.2] },
-          ],
+  const [posts, savedPostIds] = await Promise.all([
+    Post.aggregate([
+      { $match: match },
+      {
+        $addFields: {
+          trendingScore: {
+            $add: [
+              { $multiply: [{ $size: { $ifNull: ["$likes", []] } }, 3] },
+              { $multiply: [{ $size: { $ifNull: ["$comments", []] } }, 4] },
+              { $multiply: [{ $ifNull: ["$viewCount", 0] }, 0.2] },
+            ],
+          },
         },
       },
-    },
-    { $sort: { trendingScore: -1, createdAt: -1 } },
-    { $limit: limit },
-    ...authorLookupStages,
+      { $sort: { trendingScore: -1, createdAt: -1 } },
+      { $limit: limit },
+      ...authorLookupStages,
+    ]),
+    getSavedPostIds(viewerId),
   ]);
+
+  return formatPostListResponse(posts, viewerId, savedPostIds);
 };
 
 export const getRecommendedPostsService = async (userId: string, limit: number) => {
   const user = await User.findOne({ _id: userId, isDeleted: false }).select(
-    "following blockedUsers mutedUsers hiddenPosts interests"
+    "following blockedUsers mutedUsers hiddenPosts interests savedPosts"
   );
   if (!user) return null;
 
@@ -242,7 +272,7 @@ export const getRecommendedPostsService = async (userId: string, limit: number) 
     ...usersWhoBlockedViewer.map((blockedBy) => blockedBy._id),
   ];
 
-  return Post.aggregate([
+  const posts = await Post.aggregate([
     {
       $match: {
         _id: { $nin: user.hiddenPosts ?? [] },
@@ -294,6 +324,8 @@ export const getRecommendedPostsService = async (userId: string, limit: number) 
     { $limit: limit },
     ...authorLookupStages,
   ]);
+
+  return formatPostListResponse(posts, userId, user.savedPosts);
 };
 
 export const bookmarkPostService = async (postId: string, userId: string) => {
@@ -327,7 +359,9 @@ export const getBookmarkedPostsService = async (userId: string) => {
     populate: { path: "author", select: "name profilePic" },
   });
 
-  return user?.savedPosts ?? null;
+  if (!user) return null;
+
+  return formatPostListResponse(user.savedPosts ?? [], userId, user.savedPosts ?? []);
 };
 
 export const hidePostService = async (postId: string, userId: string) => {
@@ -338,7 +372,9 @@ export const hidePostService = async (postId: string, userId: string) => {
   }).select("_id");
   if (!post) return null;
 
-  const user = await User.findOne({ _id: userId, isDeleted: false }).select("hiddenPosts");
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select(
+    "hiddenPosts savedPosts"
+  );
   if (!user) return null;
 
   const didHide = !(user.hiddenPosts ?? []).some((id) => id.equals(post._id));
@@ -365,7 +401,9 @@ export const unhidePostService = async (postId: string, userId: string) => {
 };
 
 export const getHiddenPostsService = async (userId: string, pagination: PaginationParams) => {
-  const user = await User.findOne({ _id: userId, isDeleted: false }).select("hiddenPosts");
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select(
+    "hiddenPosts savedPosts"
+  );
   if (!user) return null;
 
   const filter = {
@@ -382,30 +420,14 @@ export const getHiddenPostsService = async (userId: string, pagination: Paginati
     Post.countDocuments(filter),
   ]);
 
-  return paginatedResponse(posts, total, pagination);
+  return formatPaginatedPostResponse(posts, total, pagination, userId, user.savedPosts);
 };
 
 export const getPostByIdService = async (id: string, viewerId?: string) => {
   const post = await Post.findOne({
     _id: id,
     isArchived: { $ne: true },
-  })
-    .populate("author", "name profilePic")
-    .populate({
-      path: "comments",
-      model: "Comment",
-      match: { isModerationHidden: { $ne: true } },
-      populate: [
-        {
-          path: "user",
-          select: "name profilePic",
-        },
-        {
-          path: "replies.user",
-          select: "name profilePic",
-        },
-      ],
-    });
+  }).populate("author", "name profilePic");
 
   if (!post) return null;
 
@@ -427,7 +449,7 @@ export const getPostByIdService = async (id: string, viewerId?: string) => {
   post.viewCount += 1;
   await post.save();
 
-  return post;
+  return formatPostResponse(post, viewerId, await getSavedPostIds(viewerId));
 };
 
 export const getArchivedPostsService = async (userId: string, pagination: PaginationParams) => {
@@ -440,7 +462,7 @@ export const getArchivedPostsService = async (userId: string, pagination: Pagina
     Post.find(filter).sort({ archivedAt: -1 }).skip(pagination.skip).limit(pagination.limit),
     Post.countDocuments(filter),
   ]);
-  return paginatedResponse(posts, total, pagination);
+  return formatPaginatedPostResponse(posts, total, pagination, userId);
 };
 
 export const getPostsUnderReviewService = async (userId: string, pagination: PaginationParams) => {
@@ -458,7 +480,7 @@ export const getPostsUnderReviewService = async (userId: string, pagination: Pag
     Post.countDocuments(filter),
   ]);
 
-  return paginatedResponse(posts, total, pagination);
+  return formatPaginatedPostResponse(posts, total, pagination, userId);
 };
 
 export const archivePostService = async (id: string, userId: string, archive: boolean) => {
@@ -469,7 +491,7 @@ export const archivePostService = async (id: string, userId: string, archive: bo
   post.isArchived = archive;
   post.archivedAt = archive ? new Date() : null;
   await post.save();
-  return post;
+  return formatPostResponse(post, userId);
 };
 
 export const updatePostService = async (id: string, userId: string, updates: UpdatePostData) => {
@@ -531,7 +553,7 @@ export const updatePostService = async (id: string, userId: string, updates: Upd
     });
   }
 
-  return post;
+  return formatPostResponse(post, userId);
 };
 
 export const deletePostService = async (id: string, userId: string) => {
@@ -546,15 +568,18 @@ export const deletePostService = async (id: string, userId: string) => {
 };
 
 export const likePostService = async (postId: string, userId: string) => {
+  const savedPostIds = await getSavedPostIds(userId);
   const post = await Post.findOneAndUpdate(
     { _id: postId, likes: { $ne: userId }, ...publiclyVisible },
     { $addToSet: { likes: userId } },
     { new: true }
   );
-  if (post) return { post, didLike: true };
+  if (post) return { post: formatPostResponse(post, userId, savedPostIds), didLike: true };
 
   const existingPost = await Post.findById(postId);
-  return existingPost ? { post: existingPost, didLike: false } : null;
+  return existingPost
+    ? { post: formatPostResponse(existingPost, userId, savedPostIds), didLike: false }
+    : null;
 };
 
 export const getPostLikesService = async (postId: string, pagination: PaginationParams) => {
@@ -577,5 +602,5 @@ export const getPostLikesService = async (postId: string, pagination: Pagination
 
 export const unlikePostService = async (postId: string, userId: string) => {
   const post = await Post.findByIdAndUpdate(postId, { $pull: { likes: userId } }, { new: true });
-  return post;
+  return post ? formatPostResponse(post, userId, await getSavedPostIds(userId)) : null;
 };

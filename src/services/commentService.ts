@@ -1,9 +1,11 @@
 import CommentModel, { IComment } from "../models/Comment";
 import Post from "../models/Post";
+import User from "../models/User";
 
 import mongoose from "mongoose";
 import { analyzeContentModeration, createAutoModerationReport } from "./contentModerationService";
 import { createNotification } from "./notificationService";
+import { paginatedResponse, PaginationParams } from "../utils/pagination";
 
 const populateCommentUsers = async (comment: IComment | null): Promise<IComment | null> => {
   if (!comment) return null;
@@ -14,6 +16,55 @@ const populateCommentUsers = async (comment: IComment | null): Promise<IComment 
   ]);
 
   return comment;
+};
+
+const canViewPostComments = async (postId: string, viewerId?: string) => {
+  const post = await Post.findOne({
+    _id: postId,
+    isArchived: { $ne: true },
+    isModerationHidden: { $ne: true },
+  }).select("author visibility");
+  if (!post) return null;
+
+  const authorId = post.author.toString();
+  const isOwner = authorId === viewerId;
+  if (post.visibility === "private" && !isOwner) return false;
+  if (post.visibility === "followersOnly" && !isOwner) {
+    if (!viewerId) return false;
+    const followsAuthor = await User.findOne({
+      _id: authorId,
+      followers: viewerId,
+      isDeleted: false,
+    }).select("_id");
+    if (!followsAuthor) return false;
+  }
+
+  return true;
+};
+
+export const getPostCommentsService = async (
+  postId: string,
+  pagination: PaginationParams,
+  viewerId?: string
+) => {
+  const canView = await canViewPostComments(postId, viewerId);
+  if (canView === null) return null;
+  if (canView === false) return false;
+
+  const filter = { post: postId, isModerationHidden: { $ne: true } };
+  const [comments, total] = await Promise.all([
+    CommentModel.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(pagination.skip)
+      .limit(pagination.limit)
+      .populate([
+        { path: "user", select: "name profilePic" },
+        { path: "replies.user", select: "name profilePic" },
+      ]),
+    CommentModel.countDocuments(filter),
+  ]);
+
+  return paginatedResponse(comments, total, pagination);
 };
 
 export const createCommentService = async (
