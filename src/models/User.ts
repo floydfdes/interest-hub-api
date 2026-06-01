@@ -2,6 +2,7 @@ import { Document, Schema, Types, model } from "mongoose";
 
 export interface IUser extends Document {
   name: string;
+  username?: string;
   email: string;
   password: string;
   role: "user" | "admin";
@@ -34,6 +35,16 @@ export interface IUser extends Document {
 const UserSchema = new Schema<IUser>(
   {
     name: { type: String, required: true, trim: true },
+    username: {
+      type: String,
+      unique: true,
+      sparse: true,
+      lowercase: true,
+      trim: true,
+      minlength: 3,
+      maxlength: 30,
+      match: /^[a-zA-Z0-9_]+$/,
+    },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true, minlength: 6 },
     role: { type: String, enum: ["user", "admin"], default: "user" },

@@ -98,10 +98,13 @@ describe("notificationService", () => {
 
     expect(mockNotificationFind).toHaveBeenCalledWith({ recipient: recipientId.toString() });
     expect(mockSort).toHaveBeenCalledWith({ createdAt: -1 });
-    expect(mockPopulateActor).toHaveBeenCalledWith("actor", "name profilePic");
+    expect(mockPopulateActor).toHaveBeenCalledWith("actor", "name username profilePic");
     expect(mockPopulatePost).toHaveBeenCalledWith("post", "title image");
     expect(mockPopulateComment).toHaveBeenCalledWith("comment", "content");
-    expect(mockPopulateTargetUser).toHaveBeenCalledWith("targetUser", "name profilePic isPrivate");
+    expect(mockPopulateTargetUser).toHaveBeenCalledWith(
+      "targetUser",
+      "name username profilePic isPrivate"
+    );
     expect(result.pagination.total).toBe(2);
   });
 

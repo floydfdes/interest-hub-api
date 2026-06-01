@@ -123,6 +123,16 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
     const updated = await updateUserProfile(req.userId!, req.body);
     res.status(200).json(updated);
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to update profile";
+    if (
+      [
+        "Username can only contain letters, numbers, and underscores",
+        "Username already in use",
+      ].includes(message)
+    ) {
+      res.status(400).json({ message });
+      return;
+    }
     logError("Failed to update profile", error, { userId: req.userId });
     res.status(500).json({ message: "Failed to update profile" });
   }

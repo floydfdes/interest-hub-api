@@ -5,6 +5,7 @@ import User from "../models/User";
 import mongoose from "mongoose";
 import { analyzeContentModeration, createAutoModerationReport } from "./contentModerationService";
 import { createNotification } from "./notificationService";
+import { notifyMentionedUsers } from "./mentionService";
 import { paginatedResponse, PaginationParams } from "../utils/pagination";
 
 const populateCommentUsers = async (comment: IComment | null): Promise<IComment | null> => {
@@ -110,6 +111,12 @@ export const createCommentService = async (
       commentId: savedComment._id as mongoose.Types.ObjectId,
       message: "Someone commented on your post.",
     });
+    await notifyMentionedUsers({
+      actorId: userId,
+      text: content,
+      postId: post._id as mongoose.Types.ObjectId,
+      commentId: savedComment._id as mongoose.Types.ObjectId,
+    });
   }
 
   return (await populateCommentUsers(savedComment))!;
@@ -122,6 +129,7 @@ export const editCommentService = async (
 ): Promise<IComment | null> => {
   const comment = await CommentModel.findOne({ _id: commentId, user: userId });
   if (!comment) return null;
+  const previousText = comment.content;
 
   const moderation = analyzeContentModeration([content]);
   comment.content = content;
@@ -142,6 +150,14 @@ export const editCommentService = async (
     await createAutoModerationReport({
       targetType: "comment",
       targetId: comment._id as mongoose.Types.ObjectId,
+    });
+  } else {
+    await notifyMentionedUsers({
+      actorId: userId,
+      text: comment.content,
+      previousText,
+      postId: comment.post,
+      commentId: comment._id as mongoose.Types.ObjectId,
     });
   }
 
@@ -220,6 +236,12 @@ export const replyToCommentService = async (
       commentId: comment._id as mongoose.Types.ObjectId,
       message: "Someone replied to your comment.",
     });
+    await notifyMentionedUsers({
+      actorId: userId,
+      text: content,
+      postId: comment.post,
+      commentId: comment._id as mongoose.Types.ObjectId,
+    });
   }
   return populateCommentUsers(comment);
 };
@@ -236,6 +258,7 @@ export const editReplyService = async (
   });
 
   if (!comment || !comment.replies[replyIndex]) return null;
+  const previousText = comment.replies[replyIndex].content;
   const moderation = analyzeContentModeration([content]);
   comment.replies[replyIndex].content = content;
   if (moderation.needsReview) {
@@ -255,6 +278,14 @@ export const editReplyService = async (
     await createAutoModerationReport({
       targetType: "comment",
       targetId: comment._id as mongoose.Types.ObjectId,
+    });
+  } else {
+    await notifyMentionedUsers({
+      actorId: userId,
+      text: content,
+      previousText,
+      postId: comment.post,
+      commentId: comment._id as mongoose.Types.ObjectId,
     });
   }
   return populateCommentUsers(comment);
@@ -345,6 +376,12 @@ export const replyToReplyService = async (
       postId: comment.post,
       commentId: comment._id as mongoose.Types.ObjectId,
       message: "Someone replied to your reply.",
+    });
+    await notifyMentionedUsers({
+      actorId: userId,
+      text: content,
+      postId: comment.post,
+      commentId: comment._id as mongoose.Types.ObjectId,
     });
   }
   return populateCommentUsers(comment);

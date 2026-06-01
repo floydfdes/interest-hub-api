@@ -13,10 +13,15 @@ import logger from "../utils/logger";
 import { getActivityRequestContext, recordActivity } from "../services/activityService";
 
 export const registerUser = async (req: Request, res: Response): Promise<void> => {
-  const { name, email, password } = req.body;
+  const { name, email, password, username } = req.body;
 
   try {
-    const { token, refreshToken, user } = await registerUserService(name, email, password);
+    const { token, refreshToken, user } = await registerUserService(
+      name,
+      email,
+      password,
+      username
+    );
 
     res
       .cookie("refreshToken", refreshToken, {

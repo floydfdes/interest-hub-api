@@ -89,6 +89,11 @@
                                     "name": {
                                         "type": "string"
                                     },
+                                    "username": {
+                                        "type": "string",
+                                        "pattern": "^[a-zA-Z0-9_]{3,30}$",
+                                        "description": "Optional handle for @mentions. If omitted, backend generates one."
+                                    },
                                     "email": {
                                         "type": "string"
                                     },
@@ -360,7 +365,8 @@
                                         "type": "string"
                                     },
                                     "content": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "description": "Supports @username mentions and #hashtags. Hashtags are merged into tags automatically."
                                     },
                                     "image": {
                                         "type": "string",
@@ -799,7 +805,8 @@
                                         "type": "string"
                                     },
                                     "content": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "description": "Supports @username mentions and #hashtags. Hashtags are merged into tags automatically."
                                     },
                                     "image": {
                                         "type": "string",
@@ -1868,7 +1875,8 @@
                                         "type": "string"
                                     },
                                     "content": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "description": "Supports  mentions. Mentioned users receive notifications."
                                     }
                                 }
                             }
@@ -1917,7 +1925,8 @@
                                 ],
                                 "properties": {
                                     "content": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "description": "Supports  mentions. Mentioned users receive notifications."
                                     }
                                 }
                             }
@@ -2069,7 +2078,8 @@
                                 ],
                                 "properties": {
                                     "content": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "description": "Supports  mentions. Mentioned users receive notifications."
                                     }
                                 }
                             }
@@ -2129,7 +2139,8 @@
                                 ],
                                 "properties": {
                                     "content": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "description": "Supports  mentions. Mentioned users receive notifications."
                                     }
                                 }
                             }
@@ -2313,7 +2324,8 @@
                                 ],
                                 "properties": {
                                     "content": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "description": "Supports  mentions. Mentioned users receive notifications."
                                     }
                                 }
                             }

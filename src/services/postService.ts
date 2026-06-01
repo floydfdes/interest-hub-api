@@ -10,12 +10,14 @@ import {
   formatPostListResponse,
   formatPostResponse,
 } from "../utils/postResponse";
+import { mergeTagsWithContentHashtags } from "../utils/socialText";
 import {
   analyzeContentModeration,
   createAutoModerationReport,
   dismissAutoModerationReport,
 } from "./contentModerationService";
 import { createNotification } from "./notificationService";
+import { notifyMentionedUsers } from "./mentionService";
 
 type CreatePostData = Pick<IPost, "title" | "content" | "category" | "author"> & {
   image: string;
@@ -45,9 +47,8 @@ export interface AdvancedPostSearchFilters {
 
 export type TrendingPeriod = "day" | "week" | "month" | "all";
 
-const normalizeTags = (tags: string[] = []): string[] => [
-  ...new Set(tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean)),
-];
+const normalizeTags = (tags: string[] = []): string[] =>
+  [...new Set(tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean))].slice(0, 10);
 
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -74,7 +75,7 @@ export const createPostService = async (postData: CreatePostData) => {
     title: postData.title,
     content: postData.content,
     category: postData.category,
-    tags: normalizeTags(postData.tags),
+    tags: mergeTagsWithContentHashtags(postData.tags, postData.content),
     visibility: postData.visibility,
     status: "published",
     author: postData.author,
@@ -95,6 +96,12 @@ export const createPostService = async (postData: CreatePostData) => {
       postId: post._id as mongoose.Types.ObjectId,
       message: "Your post is under review and hidden until moderation is complete.",
     });
+  } else {
+    await notifyMentionedUsers({
+      actorId: post.author.toString(),
+      text: `${post.title} ${post.content}`,
+      postId: post._id as mongoose.Types.ObjectId,
+    });
   }
 
   return formatPostResponse(post, post.author.toString());
@@ -109,7 +116,7 @@ export const createDraftPostService = async (draftData: DraftPostData) => {
     title: draftData.title ?? "",
     content: draftData.content ?? "",
     category: draftData.category ?? "",
-    tags: normalizeTags(draftData.tags),
+    tags: mergeTagsWithContentHashtags(draftData.tags, draftData.content),
     visibility: draftData.visibility ?? "public",
     author: draftData.author,
     image,
@@ -138,7 +145,12 @@ export const updateDraftPostService = async (
     ...(typeof updates.title === "string" && { title: updates.title }),
     ...(typeof updates.content === "string" && { content: updates.content }),
     ...(typeof updates.category === "string" && { category: updates.category }),
-    ...(Array.isArray(updates.tags) && { tags: normalizeTags(updates.tags) }),
+    ...((Array.isArray(updates.tags) || typeof updates.content === "string") && {
+      tags: mergeTagsWithContentHashtags(
+        Array.isArray(updates.tags) ? updates.tags : post.tags,
+        typeof updates.content === "string" ? updates.content : post.content
+      ),
+    }),
     ...(updates.visibility && { visibility: updates.visibility }),
     ...(updates.image && { image: updates.image }),
     isEdited: true,
@@ -177,6 +189,7 @@ export const publishDraftPostService = async (id: string, userId: string) => {
   }
 
   const moderation = analyzeContentModeration([post.title, post.content]);
+  post.tags = mergeTagsWithContentHashtags(post.tags, post.content);
   post.status = "published";
   post.isModerationHidden = moderation.needsReview;
   post.needsReview = moderation.needsReview;
@@ -193,6 +206,12 @@ export const publishDraftPostService = async (id: string, userId: string) => {
       type: "post_under_review",
       postId: post._id as mongoose.Types.ObjectId,
       message: "Your post is under review and hidden until moderation is complete.",
+    });
+  } else {
+    await notifyMentionedUsers({
+      actorId: post.author.toString(),
+      text: `${post.title} ${post.content}`,
+      postId: post._id as mongoose.Types.ObjectId,
     });
   }
 
@@ -611,6 +630,7 @@ export const updatePostService = async (id: string, userId: string, updates: Upd
   const post = await Post.findById(id);
   if (!post) return null;
   if (post.author.toString() !== userId) return false;
+  const previousText = `${post.title} ${post.content}`;
 
   if (updates.image) {
     const cloudinaryUrl = await uploadImageToCloudinary(updates.image, "post_images");
@@ -621,7 +641,12 @@ export const updatePostService = async (id: string, userId: string, updates: Upd
     ...(typeof updates.title === "string" && { title: updates.title }),
     ...(typeof updates.content === "string" && { content: updates.content }),
     ...(typeof updates.category === "string" && { category: updates.category }),
-    ...(Array.isArray(updates.tags) && { tags: normalizeTags(updates.tags) }),
+    ...((Array.isArray(updates.tags) || typeof updates.content === "string") && {
+      tags: mergeTagsWithContentHashtags(
+        Array.isArray(updates.tags) ? updates.tags : post.tags,
+        typeof updates.content === "string" ? updates.content : post.content
+      ),
+    }),
     ...(updates.visibility && { visibility: updates.visibility }),
     ...(updates.image && { image: updates.image }),
   };
@@ -663,6 +688,12 @@ export const updatePostService = async (id: string, userId: string, updates: Upd
     await dismissAutoModerationReport({
       targetType: "post",
       targetId: post._id as mongoose.Types.ObjectId,
+    });
+    await notifyMentionedUsers({
+      actorId: userId,
+      text: `${post.title} ${post.content}`,
+      previousText,
+      postId: post._id as mongoose.Types.ObjectId,
     });
   }
 

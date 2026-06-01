@@ -18,7 +18,7 @@ const canViewPrivateAccount = (
 
 export const getUserById = async (id: string, viewerId?: string) => {
   const user = await User.findOne({ _id: id, isDeleted: false }).select(
-    "name profilePic bio interests followers following followRequests isPrivate"
+    "name username profilePic bio interests followers following followRequests isPrivate"
   );
   if (!user) return null;
 
@@ -27,6 +27,7 @@ export const getUserById = async (id: string, viewerId?: string) => {
   const baseProfile = {
     _id: user._id,
     name: user.name,
+    username: user.username,
     profilePic: user.profilePic || null,
     isPrivate: user.isPrivate,
     isFollowing,
@@ -94,6 +95,7 @@ export const updateUserProfile = async (
   userId: string,
   updates: Partial<{
     name: string;
+    username: string;
     bio: string;
     interests: string[];
     profilePic: string;
@@ -103,8 +105,22 @@ export const updateUserProfile = async (
   const user = await User.findOne({ _id: userId, isDeleted: false });
   if (!user) return null;
 
+  const normalizedUsername =
+    typeof updates.username === "string" ? updates.username.trim().toLowerCase() : undefined;
+  if (normalizedUsername !== undefined) {
+    if (!/^[a-z0-9_]{3,30}$/.test(normalizedUsername)) {
+      throw new Error("Username can only contain letters, numbers, and underscores");
+    }
+    const existingUser = await User.findOne({
+      username: normalizedUsername,
+      _id: { $ne: user._id },
+    }).select("_id");
+    if (existingUser) throw new Error("Username already in use");
+  }
+
   const allowedUpdates = {
     ...(typeof updates.name === "string" && { name: updates.name }),
+    ...(normalizedUsername !== undefined && { username: normalizedUsername }),
     ...(typeof updates.bio === "string" && { bio: updates.bio }),
     ...(Array.isArray(updates.interests) && { interests: updates.interests }),
     ...(typeof updates.isPrivate === "boolean" && { isPrivate: updates.isPrivate }),
@@ -195,7 +211,7 @@ export const getFollowers = async (
   const total = user.followers.length;
   await user.populate({
     path: "followers",
-    select: "name profilePic",
+    select: "name username profilePic",
     options: { skip: pagination.skip, limit: pagination.limit },
   });
 
@@ -216,7 +232,7 @@ export const getFollowing = async (
   const total = user.following.length;
   await user.populate({
     path: "following",
-    select: "name profilePic",
+    select: "name username profilePic",
     options: { skip: pagination.skip, limit: pagination.limit },
   });
 
@@ -230,7 +246,7 @@ export const getBlockedUsers = async (userId: string, pagination: PaginationPara
   const total = user.blockedUsers.length;
   await user.populate({
     path: "blockedUsers",
-    select: "name profilePic",
+    select: "name username profilePic",
     options: { skip: pagination.skip, limit: pagination.limit },
   });
 
@@ -244,7 +260,7 @@ export const getMutedUsers = async (userId: string, pagination: PaginationParams
   const total = user.mutedUsers.length;
   await user.populate({
     path: "mutedUsers",
-    select: "name profilePic",
+    select: "name username profilePic",
     options: { skip: pagination.skip, limit: pagination.limit },
   });
 
@@ -258,7 +274,7 @@ export const getFollowRequests = async (userId: string, pagination: PaginationPa
   const total = user.followRequests.length;
   await user.populate({
     path: "followRequests",
-    select: "name profilePic bio",
+    select: "name username profilePic bio",
     options: { skip: pagination.skip, limit: pagination.limit },
   });
   return paginatedResponse(user.followRequests, total, pagination);
@@ -371,14 +387,15 @@ export const searchUsers = async (query: string) => {
   const regex = new RegExp(escapedQuery, "i");
   const users = await User.find({
     isDeleted: false,
-    $or: [{ name: regex }, { interests: regex, isPrivate: { $ne: true } }],
-  }).select("name profilePic bio interests following followers isPrivate createdAt");
+    $or: [{ name: regex }, { username: regex }, { interests: regex, isPrivate: { $ne: true } }],
+  }).select("name username profilePic bio interests following followers isPrivate createdAt");
 
   return users.map((user) =>
     user.isPrivate
       ? {
           _id: user._id,
           name: user.name,
+          username: user.username,
           profilePic: user.profilePic || null,
           isPrivate: true,
         }

@@ -10,6 +10,7 @@ export const NOTIFICATION_TYPES = [
   "post_under_review",
   "post_shared",
   "profile_shared",
+  "user_mentioned",
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];

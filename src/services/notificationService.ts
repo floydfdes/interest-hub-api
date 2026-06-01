@@ -44,10 +44,10 @@ export const getNotificationsService = async (userId: string, pagination: Pagina
       .sort({ createdAt: -1 })
       .skip(pagination.skip)
       .limit(pagination.limit)
-      .populate("actor", "name profilePic")
+      .populate("actor", "name username profilePic")
       .populate("post", "title image")
       .populate("comment", "content")
-      .populate("targetUser", "name profilePic isPrivate"),
+      .populate("targetUser", "name username profilePic isPrivate"),
     Notification.countDocuments(filter),
   ]);
 

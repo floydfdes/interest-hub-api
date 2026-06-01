@@ -6,6 +6,7 @@ const mockReportCreate = jest.fn();
 const mockReportUpdateMany = jest.fn();
 const mockFindById = jest.fn();
 const mockCreateNotification = jest.fn();
+const mockNotifyMentionedUsers = jest.fn();
 
 jest.mock("../models/Post", () => ({
   __esModule: true,
@@ -36,6 +37,10 @@ jest.mock("../models/Report", () => ({
 
 jest.mock("../services/notificationService", () => ({
   createNotification: mockCreateNotification,
+}));
+
+jest.mock("../services/mentionService", () => ({
+  notifyMentionedUsers: mockNotifyMentionedUsers,
 }));
 
 import {
@@ -70,6 +75,21 @@ describe("post search and tags", () => {
 
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({ tags: ["typescript", "api"] })
+    );
+  });
+
+  it("adds content hashtags to post tags when a post is created", async () => {
+    await createPostService({
+      title: "Post",
+      content: "Exploring #Travel and #hidden_gems",
+      image: "image",
+      category: "Travel",
+      author: new mongoose.Types.ObjectId("507f1f77bcf86cd799439011"),
+      tags: ["Photography"],
+    });
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ tags: ["photography", "travel", "hidden_gems"] })
     );
   });
 

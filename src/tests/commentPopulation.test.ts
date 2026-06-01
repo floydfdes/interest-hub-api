@@ -2,6 +2,7 @@ const mockFindByIdAndUpdate = jest.fn();
 const mockReportFindOne = jest.fn();
 const mockReportCreate = jest.fn();
 const mockCreateNotification = jest.fn();
+const mockNotifyMentionedUsers = jest.fn();
 
 jest.mock("../models/Comment", () => ({
   __esModule: true,
@@ -25,6 +26,10 @@ jest.mock("../models/Report", () => ({
 
 jest.mock("../services/notificationService", () => ({
   createNotification: mockCreateNotification,
+}));
+
+jest.mock("../services/mentionService", () => ({
+  notifyMentionedUsers: mockNotifyMentionedUsers,
 }));
 
 import { replyToCommentService } from "../services/commentService";

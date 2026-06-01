@@ -8,14 +8,49 @@ import {
 import bcrypt from "bcryptjs";
 import User from "../models/User";
 
-export const registerUserService = async (name: string, email: string, password: string) => {
+const normalizeUsername = (username: string) => username.trim().toLowerCase();
+
+const usernameBaseFrom = (name: string, email: string) => {
+  const base = name.toLowerCase().replace(/[^a-z0-9_]/g, "") || email.split("@")[0].toLowerCase();
+  return base.replace(/[^a-z0-9_]/g, "").slice(0, 24) || "user";
+};
+
+const getAvailableUsername = async (name: string, email: string, requestedUsername?: string) => {
+  if (requestedUsername) {
+    const username = normalizeUsername(requestedUsername);
+    if (!/^[a-z0-9_]{3,30}$/.test(username)) {
+      throw new Error("Username can only contain letters, numbers, and underscores");
+    }
+    const existingUser = await User.findOne({ username });
+    if (existingUser) throw new Error("Username already in use");
+    return username;
+  }
+
+  const base = usernameBaseFrom(name, email);
+  for (let suffix = 0; suffix < 1000; suffix += 1) {
+    const username = suffix === 0 ? base : `${base}${suffix}`;
+    const existingUser = await User.findOne({ username });
+    if (!existingUser) return username;
+  }
+
+  return `${base}${Date.now().toString().slice(-6)}`.slice(0, 30);
+};
+
+export const registerUserService = async (
+  name: string,
+  email: string,
+  password: string,
+  username?: string
+) => {
   const existingUser = await User.findOne({ email });
   if (existingUser) throw new Error("Email already in use");
 
   const hashedPassword = await bcrypt.hash(password, 10);
+  const availableUsername = await getAvailableUsername(name, email, username);
 
   const user = new User({
     name,
+    username: availableUsername,
     email,
     password: hashedPassword,
   });
@@ -31,6 +66,7 @@ export const registerUserService = async (name: string, email: string, password:
     user: {
       id: user._id,
       name: user.name,
+      username: user.username,
       email: user.email,
       profilePic: user.profilePic || null,
     },
@@ -53,6 +89,7 @@ export const loginUserService = async (email: string, password: string) => {
     user: {
       id: user._id,
       name: user.name,
+      username: user.username,
       email: user.email,
       profilePic: user.profilePic || null,
     },
