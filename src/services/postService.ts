@@ -47,6 +47,14 @@ export interface AdvancedPostSearchFilters {
 
 export type TrendingPeriod = "day" | "week" | "month" | "all";
 
+type SavedCollection = {
+  _id: mongoose.Types.ObjectId;
+  name: string;
+  posts?: mongoose.Types.ObjectId[];
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
 const normalizeTags = (tags: string[] = []): string[] =>
   [...new Set(tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean))].slice(0, 10);
 
@@ -63,6 +71,43 @@ const getSavedPostIds = async (viewerId?: string) => {
 
   const user = await User.findOne({ _id: viewerId, isDeleted: false }).select("savedPosts");
   return user?.savedPosts ?? [];
+};
+
+const formatSavedCollection = (collection: SavedCollection) => ({
+  _id: collection._id,
+  name: collection.name,
+  postsCount: collection.posts?.length ?? 0,
+  createdAt: collection.createdAt,
+  updatedAt: collection.updatedAt,
+});
+
+const findSavedCollection = (collections: SavedCollection[] = [], collectionId: string) =>
+  collections.find((collection) => collection._id.toString() === collectionId);
+
+const trackRecentlyViewedPost = async (
+  userId: string | undefined,
+  postId: mongoose.Types.ObjectId,
+  shouldTrack: boolean
+) => {
+  if (!userId || !shouldTrack) return;
+
+  const viewedAt = new Date();
+  await User.updateOne(
+    { _id: userId, isDeleted: false },
+    { $pull: { recentlyViewedPosts: { post: postId } } }
+  );
+  await User.updateOne(
+    { _id: userId, isDeleted: false },
+    {
+      $push: {
+        recentlyViewedPosts: {
+          $each: [{ post: postId, viewedAt }],
+          $position: 0,
+          $slice: 50,
+        },
+      },
+    }
+  );
 };
 
 export const createPostService = async (postData: CreatePostData) => {
@@ -473,7 +518,7 @@ export const bookmarkPostService = async (postId: string, userId: string) => {
 export const removeBookmarkService = async (postId: string, userId: string) => {
   return User.findOneAndUpdate(
     { _id: userId, isDeleted: false },
-    { $pull: { savedPosts: postId } },
+    { $pull: { savedPosts: postId, "savedCollections.$[].posts": postId } },
     { new: true }
   );
 };
@@ -489,6 +534,157 @@ export const getBookmarkedPostsService = async (userId: string) => {
   if (!user) return null;
 
   return formatPostListResponse(user.savedPosts ?? [], userId, user.savedPosts ?? []);
+};
+
+export const createSavedCollectionService = async (userId: string, name: string) => {
+  const trimmedName = name.trim();
+  if (!trimmedName) throw new Error("Collection name is required");
+
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select("savedCollections");
+  if (!user) return null;
+
+  user.savedCollections ??= [];
+  const collectionExists = user.savedCollections.some(
+    (collection) => collection.name.toLowerCase() === trimmedName.toLowerCase()
+  );
+  if (collectionExists) throw new Error("Collection already exists");
+
+  const now = new Date();
+  const collection = {
+    _id: new mongoose.Types.ObjectId(),
+    name: trimmedName,
+    posts: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+  user.savedCollections.push(collection);
+  await user.save();
+
+  return formatSavedCollection(collection);
+};
+
+export const getSavedCollectionsService = async (userId: string) => {
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select("savedCollections");
+  if (!user) return null;
+
+  return (user.savedCollections ?? []).map(formatSavedCollection);
+};
+
+export const updateSavedCollectionService = async (
+  userId: string,
+  collectionId: string,
+  name: string
+) => {
+  const trimmedName = name.trim();
+  if (!trimmedName) throw new Error("Collection name is required");
+
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select("savedCollections");
+  if (!user) return null;
+
+  const collection = findSavedCollection(user.savedCollections, collectionId);
+  if (!collection) throw new Error("Saved collection not found");
+
+  const duplicate = user.savedCollections.some(
+    (existingCollection) =>
+      existingCollection._id.toString() !== collectionId &&
+      existingCollection.name.toLowerCase() === trimmedName.toLowerCase()
+  );
+  if (duplicate) throw new Error("Collection already exists");
+
+  collection.name = trimmedName;
+  collection.updatedAt = new Date();
+  await user.save();
+
+  return formatSavedCollection(collection);
+};
+
+export const deleteSavedCollectionService = async (userId: string, collectionId: string) => {
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select("savedCollections");
+  if (!user) return null;
+
+  const initialCount = user.savedCollections?.length ?? 0;
+  user.savedCollections = (user.savedCollections ?? []).filter(
+    (collection) => collection._id.toString() !== collectionId
+  );
+  if (user.savedCollections.length === initialCount) throw new Error("Saved collection not found");
+
+  await user.save();
+  return true;
+};
+
+export const addPostToSavedCollectionService = async (
+  userId: string,
+  collectionId: string,
+  postId: string
+) => {
+  const [post, user] = await Promise.all([
+    Post.findOne({ _id: postId, visibility: "public", ...publiclyVisible }).select("_id"),
+    User.findOne({ _id: userId, isDeleted: false }).select("savedPosts savedCollections"),
+  ]);
+  if (!post) throw new Error("Post not found");
+  if (!user) return null;
+
+  const collection = findSavedCollection(user.savedCollections, collectionId);
+  if (!collection) throw new Error("Saved collection not found");
+
+  user.savedPosts ??= [];
+  user.savedCollections ??= [];
+  if (!user.savedPosts.some((savedPostId) => savedPostId.equals(post._id))) {
+    user.savedPosts.push(post._id);
+  }
+  collection.posts ??= [];
+  if (!collection.posts.some((savedPostId) => savedPostId.equals(post._id))) {
+    collection.posts.push(post._id);
+  }
+  collection.updatedAt = new Date();
+  await user.save();
+
+  return formatSavedCollection(collection);
+};
+
+export const removePostFromSavedCollectionService = async (
+  userId: string,
+  collectionId: string,
+  postId: string
+) => {
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select("savedCollections");
+  if (!user) return null;
+
+  const collection = findSavedCollection(user.savedCollections, collectionId);
+  if (!collection) throw new Error("Saved collection not found");
+
+  collection.posts = (collection.posts ?? []).filter((savedPostId) => !savedPostId.equals(postId));
+  collection.updatedAt = new Date();
+  await user.save();
+
+  return formatSavedCollection(collection);
+};
+
+export const getSavedCollectionPostsService = async (
+  userId: string,
+  collectionId: string,
+  pagination: PaginationParams
+) => {
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select(
+    "savedPosts savedCollections"
+  );
+  if (!user) return null;
+
+  const collection = findSavedCollection(user.savedCollections, collectionId);
+  if (!collection) throw new Error("Saved collection not found");
+
+  const postIds = collection.posts ?? [];
+  const filter = { _id: { $in: postIds }, visibility: "public" as Visibility, ...publiclyVisible };
+  const [posts, total] = await Promise.all([
+    Post.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(pagination.skip)
+      .limit(pagination.limit)
+      .populate("author", "name profilePic"),
+    Post.countDocuments(filter),
+  ]);
+
+  return formatPaginatedPostResponse(posts, total, pagination, userId, user.savedPosts);
 };
 
 export const hidePostService = async (postId: string, userId: string) => {
@@ -576,8 +772,53 @@ export const getPostByIdService = async (id: string, viewerId?: string) => {
 
   post.viewCount += 1;
   await post.save();
+  await trackRecentlyViewedPost(
+    viewerId,
+    post._id as mongoose.Types.ObjectId,
+    post.status !== "draft"
+  );
 
   return formatPostResponse(post, viewerId, await getSavedPostIds(viewerId));
+};
+
+export const getRecentlyViewedPostsService = async (
+  userId: string,
+  pagination: PaginationParams
+) => {
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select(
+    "recentlyViewedPosts savedPosts following blockedUsers mutedUsers hiddenPosts"
+  );
+  if (!user) return null;
+
+  const viewedPostIds = (user.recentlyViewedPosts ?? []).map((item) => item.post).filter(Boolean);
+  if (viewedPostIds.length === 0) {
+    return paginatedResponse([], 0, pagination);
+  }
+
+  const filter = {
+    _id: { $in: viewedPostIds, $nin: user.hiddenPosts ?? [] },
+    author: { $nin: [...(user.blockedUsers ?? []), ...(user.mutedUsers ?? [])] },
+    ...publiclyVisible,
+    $or: [
+      { visibility: "public" as Visibility },
+      { author: user._id },
+      { visibility: "followersOnly" as Visibility, author: { $in: user.following ?? [] } },
+    ],
+  };
+  const posts = await Post.find(filter).populate("author", "name profilePic");
+  const postById = new Map(posts.map((post) => [(post._id as mongoose.Types.ObjectId).toString(), post]));
+  const orderedPosts = viewedPostIds
+    .map((postId) => postById.get(postId.toString()))
+    .filter(Boolean);
+  const paginatedPosts = orderedPosts.slice(pagination.skip, pagination.skip + pagination.limit);
+
+  return formatPaginatedPostResponse(
+    paginatedPosts,
+    orderedPosts.length,
+    pagination,
+    userId,
+    user.savedPosts
+  );
 };
 
 export const getArchivedPostsService = async (userId: string, pagination: PaginationParams) => {
@@ -707,7 +948,17 @@ export const deletePostService = async (id: string, userId: string) => {
 
   await post.deleteOne();
   await Comment.deleteMany({ post: id });
-  await User.updateMany({}, { $pull: { hiddenPosts: post._id, savedPosts: post._id } });
+  await User.updateMany(
+    {},
+    {
+      $pull: {
+        hiddenPosts: post._id,
+        savedPosts: post._id,
+        "savedCollections.$[].posts": post._id,
+        recentlyViewedPosts: { post: post._id },
+      },
+    }
+  );
   return true;
 };
 

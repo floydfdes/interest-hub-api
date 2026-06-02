@@ -97,7 +97,14 @@ describe("admin destructive actions", () => {
     );
     expect(mockUserUpdateMany).toHaveBeenCalledWith(
       {},
-      { $pull: { savedPosts: postId, hiddenPosts: postId } }
+      {
+        $pull: {
+          savedPosts: postId,
+          hiddenPosts: postId,
+          "savedCollections.$[].posts": postId,
+          recentlyViewedPosts: { post: postId },
+        },
+      }
     );
   });
 

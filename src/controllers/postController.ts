@@ -1,10 +1,13 @@
 import { Request, Response } from "express";
 import {
   advancedSearchPostsService,
+  addPostToSavedCollectionService,
   archivePostService,
   bookmarkPostService,
+  createSavedCollectionService,
   createDraftPostService,
   createPostService,
+  deleteSavedCollectionService,
   deletePostService,
   getBookmarkedPostsService,
   getAllPostsService,
@@ -14,17 +17,22 @@ import {
   getDraftPostsService,
   getPostByIdService,
   getPostsUnderReviewService,
+  getRecentlyViewedPostsService,
   getRecommendedPostsService,
+  getSavedCollectionPostsService,
+  getSavedCollectionsService,
   getTrendingPostsService,
   hidePostService,
   likePostService,
   getPostLikesService,
   removeBookmarkService,
+  removePostFromSavedCollectionService,
   publishDraftPostService,
   searchPostsService,
   TrendingPeriod,
   unlikePostService,
   unhidePostService,
+  updateSavedCollectionService,
   updateDraftPostService,
   updatePostService,
 } from "../services/postService";
@@ -300,6 +308,185 @@ export const getBookmarkedPosts = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     logError("Failed to fetch bookmarks", error, { userId: req.userId });
     res.status(500).json({ message: "Failed to fetch bookmarks" });
+  }
+};
+
+const handleSavedCollectionError = (res: Response, error: unknown) => {
+  const message = error instanceof Error ? error.message : "Failed to update saved collection";
+  if (
+    message === "Collection name is required" ||
+    message === "Collection already exists" ||
+    message === "Post not found"
+  ) {
+    res.status(400).json({ message });
+    return true;
+  }
+  if (message === "Saved collection not found") {
+    res.status(404).json({ message });
+    return true;
+  }
+
+  return false;
+};
+
+export const createSavedCollection = async (req: AuthRequest, res: Response) => {
+  try {
+    const name = typeof req.body.name === "string" ? req.body.name : "";
+    const collection = await createSavedCollectionService(req.userId!, name);
+    if (!collection) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.status(201).json(collection);
+  } catch (error) {
+    if (handleSavedCollectionError(res, error)) return;
+    logError("Failed to create saved collection", error, { userId: req.userId });
+    res.status(500).json({ message: "Failed to create saved collection" });
+  }
+};
+
+export const getSavedCollections = async (req: AuthRequest, res: Response) => {
+  try {
+    const collections = await getSavedCollectionsService(req.userId!);
+    if (!collections) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.status(200).json(collections);
+  } catch (error) {
+    logError("Failed to fetch saved collections", error, { userId: req.userId });
+    res.status(500).json({ message: "Failed to fetch saved collections" });
+  }
+};
+
+export const updateSavedCollection = async (req: AuthRequest, res: Response) => {
+  try {
+    const name = typeof req.body.name === "string" ? req.body.name : "";
+    const collection = await updateSavedCollectionService(
+      req.userId!,
+      req.params.collectionId,
+      name
+    );
+    if (!collection) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.status(200).json(collection);
+  } catch (error) {
+    if (handleSavedCollectionError(res, error)) return;
+    logError("Failed to update saved collection", error, {
+      userId: req.userId,
+      collectionId: req.params.collectionId,
+    });
+    res.status(500).json({ message: "Failed to update saved collection" });
+  }
+};
+
+export const deleteSavedCollection = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await deleteSavedCollectionService(req.userId!, req.params.collectionId);
+    if (!result) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.status(200).json({ message: "Saved collection deleted" });
+  } catch (error) {
+    if (handleSavedCollectionError(res, error)) return;
+    logError("Failed to delete saved collection", error, {
+      userId: req.userId,
+      collectionId: req.params.collectionId,
+    });
+    res.status(500).json({ message: "Failed to delete saved collection" });
+  }
+};
+
+export const addPostToSavedCollection = async (req: AuthRequest, res: Response) => {
+  try {
+    const collection = await addPostToSavedCollectionService(
+      req.userId!,
+      req.params.collectionId,
+      req.params.postId
+    );
+    if (!collection) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.status(200).json(collection);
+  } catch (error) {
+    if (handleSavedCollectionError(res, error)) return;
+    logError("Failed to add post to saved collection", error, {
+      userId: req.userId,
+      collectionId: req.params.collectionId,
+      postId: req.params.postId,
+    });
+    res.status(500).json({ message: "Failed to add post to saved collection" });
+  }
+};
+
+export const removePostFromSavedCollection = async (req: AuthRequest, res: Response) => {
+  try {
+    const collection = await removePostFromSavedCollectionService(
+      req.userId!,
+      req.params.collectionId,
+      req.params.postId
+    );
+    if (!collection) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.status(200).json(collection);
+  } catch (error) {
+    if (handleSavedCollectionError(res, error)) return;
+    logError("Failed to remove post from saved collection", error, {
+      userId: req.userId,
+      collectionId: req.params.collectionId,
+      postId: req.params.postId,
+    });
+    res.status(500).json({ message: "Failed to remove post from saved collection" });
+  }
+};
+
+export const getSavedCollectionPosts = async (req: AuthRequest, res: Response) => {
+  try {
+    const posts = await getSavedCollectionPostsService(
+      req.userId!,
+      req.params.collectionId,
+      getPagination(req.query)
+    );
+    if (!posts) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.status(200).json(posts);
+  } catch (error) {
+    if (handleSavedCollectionError(res, error)) return;
+    logError("Failed to fetch saved collection posts", error, {
+      userId: req.userId,
+      collectionId: req.params.collectionId,
+    });
+    res.status(500).json({ message: "Failed to fetch saved collection posts" });
+  }
+};
+
+export const getRecentlyViewedPosts = async (req: AuthRequest, res: Response) => {
+  try {
+    const posts = await getRecentlyViewedPostsService(req.userId!, getPagination(req.query));
+    if (!posts) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.status(200).json(posts);
+  } catch (error) {
+    logError("Failed to fetch recently viewed posts", error, { userId: req.userId });
+    res.status(500).json({ message: "Failed to fetch recently viewed posts" });
   }
 };
 

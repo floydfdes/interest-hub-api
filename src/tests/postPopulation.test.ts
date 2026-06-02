@@ -2,6 +2,7 @@ const mockPopulateAuthor = jest.fn().mockResolvedValue(null);
 const mockFindOne = jest.fn(() => ({ populate: mockPopulateAuthor }));
 const mockUserSelect = jest.fn();
 const mockUserFindOne = jest.fn(() => ({ select: mockUserSelect }));
+const mockUserUpdateOne = jest.fn();
 
 jest.mock("../models/Post", () => ({
   __esModule: true,
@@ -19,6 +20,7 @@ jest.mock("../models/User", () => ({
   __esModule: true,
   default: {
     findOne: mockUserFindOne,
+    updateOne: mockUserUpdateOne,
   },
 }));
 
@@ -29,6 +31,7 @@ describe("getPostByIdService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockPopulateAuthor.mockResolvedValue(null);
+    mockUserUpdateOne.mockResolvedValue({});
   });
 
   it("populates only the post author and leaves comments for the comments endpoint", async () => {
@@ -95,6 +98,7 @@ describe("getPostByIdService", () => {
     );
     expect(post.viewCount).toBe(1);
     expect(post.save).toHaveBeenCalled();
+    expect(mockUserUpdateOne).toHaveBeenCalledTimes(2);
   });
 
   it("looks up a post by id even when it is hidden for moderation", async () => {
@@ -128,5 +132,9 @@ describe("getPostByIdService", () => {
       isDeleted: false,
     });
     expect(post.viewCount).toBe(1);
+    expect(mockUserUpdateOne).toHaveBeenCalledWith(
+      { _id: viewerId, isDeleted: false },
+      { $pull: { recentlyViewedPosts: { post: post._id } } }
+    );
   });
 });

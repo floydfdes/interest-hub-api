@@ -1,9 +1,12 @@
 import {
   advancedSearchPosts,
+  addPostToSavedCollection,
   archivePost,
   bookmarkPost,
+  createSavedCollection,
   createDraftPost,
   createPost,
+  deleteSavedCollection,
   deletePost,
   getAllPosts,
   getArchivedPosts,
@@ -14,16 +17,21 @@ import {
   getPostById,
   getPostLikes,
   getPostsUnderReview,
+  getRecentlyViewedPosts,
   getRecommendedPosts,
+  getSavedCollectionPosts,
+  getSavedCollections,
   getTrendingPosts,
   hidePost,
   likePost,
   removeBookmark,
+  removePostFromSavedCollection,
   publishDraftPost,
   searchPosts,
   unlikePost,
   unhidePost,
   unarchivePost,
+  updateSavedCollection,
   updateDraftPost,
   updatePost,
 } from "../controllers/postController";
@@ -45,6 +53,22 @@ router.get("/following", authMiddleware, getFollowingFeed);
 router.get("/trending", optionalAuthMiddleware, getTrendingPosts);
 router.get("/recommended", authMiddleware, getRecommendedPosts);
 router.get("/bookmarks", authMiddleware, getBookmarkedPosts);
+router.get("/saved-collections", authMiddleware, getSavedCollections);
+router.post("/saved-collections", authMiddleware, createSavedCollection);
+router.put("/saved-collections/:collectionId", authMiddleware, updateSavedCollection);
+router.delete("/saved-collections/:collectionId", authMiddleware, deleteSavedCollection);
+router.get("/saved-collections/:collectionId/posts", authMiddleware, getSavedCollectionPosts);
+router.post(
+  "/saved-collections/:collectionId/posts/:postId",
+  authMiddleware,
+  addPostToSavedCollection
+);
+router.delete(
+  "/saved-collections/:collectionId/posts/:postId",
+  authMiddleware,
+  removePostFromSavedCollection
+);
+router.get("/recently-viewed", authMiddleware, getRecentlyViewedPosts);
 router.get("/hidden", authMiddleware, getHiddenPosts);
 router.get("/archived", authMiddleware, getArchivedPosts);
 router.get("/review", authMiddleware, getPostsUnderReview);

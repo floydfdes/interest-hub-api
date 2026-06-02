@@ -15,6 +15,17 @@ export interface IUser extends Document {
   blockedUsers: Types.ObjectId[];
   mutedUsers: Types.ObjectId[];
   savedPosts: Types.ObjectId[];
+  savedCollections: {
+    _id: Types.ObjectId;
+    name: string;
+    posts: Types.ObjectId[];
+    createdAt: Date;
+    updatedAt: Date;
+  }[];
+  recentlyViewedPosts: {
+    post: Types.ObjectId;
+    viewedAt: Date;
+  }[];
   hiddenPosts: Types.ObjectId[];
   otp: string | null;
   otpExpires: Date | null;
@@ -60,6 +71,20 @@ const UserSchema = new Schema<IUser>(
     blockedUsers: [{ type: Schema.Types.ObjectId, ref: "User" }],
     mutedUsers: [{ type: Schema.Types.ObjectId, ref: "User" }],
     savedPosts: [{ type: Schema.Types.ObjectId, ref: "Post" }],
+    savedCollections: [
+      {
+        name: { type: String, required: true, trim: true, maxlength: 40 },
+        posts: [{ type: Schema.Types.ObjectId, ref: "Post" }],
+        createdAt: { type: Date, default: Date.now },
+        updatedAt: { type: Date, default: Date.now },
+      },
+    ],
+    recentlyViewedPosts: [
+      {
+        post: { type: Schema.Types.ObjectId, ref: "Post", required: true },
+        viewedAt: { type: Date, default: Date.now },
+      },
+    ],
     hiddenPosts: [{ type: Schema.Types.ObjectId, ref: "Post" }],
     otp: { type: String, default: null },
     otpExpires: { type: Date, default: null },

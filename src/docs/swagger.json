@@ -692,6 +692,244 @@
                 }
             }
         },
+        "/api/posts/saved-collections": {
+            "get": {
+                "tags": ["Posts"],
+                "summary": "Get the current user's saved post collections",
+                "security": [{ "bearerAuth": [] }],
+                "responses": {
+                    "200": {
+                        "description": "Saved collections with post counts"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            },
+            "post": {
+                "tags": ["Posts"],
+                "summary": "Create a saved post collection",
+                "security": [{ "bearerAuth": [] }],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["name"],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Travel"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Saved collection created"
+                    },
+                    "400": {
+                        "description": "Missing name or duplicate collection"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            }
+        },
+        "/api/posts/saved-collections/{collectionId}": {
+            "put": {
+                "tags": ["Posts"],
+                "summary": "Rename a saved post collection",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    {
+                        "name": "collectionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": { "type": "string" }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["name"],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Tech"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Saved collection renamed"
+                    },
+                    "404": {
+                        "description": "Saved collection not found"
+                    }
+                }
+            },
+            "delete": {
+                "tags": ["Posts"],
+                "summary": "Delete a saved post collection",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    {
+                        "name": "collectionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": { "type": "string" }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Saved collection deleted"
+                    },
+                    "404": {
+                        "description": "Saved collection not found"
+                    }
+                }
+            }
+        },
+        "/api/posts/saved-collections/{collectionId}/posts": {
+            "get": {
+                "tags": ["Posts"],
+                "summary": "Get posts in a saved collection",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    {
+                        "name": "collectionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": { "type": "string" }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": { "type": "integer", "minimum": 1, "default": 1 }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 50,
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated lightweight public posts in the saved collection"
+                    },
+                    "404": {
+                        "description": "Saved collection not found"
+                    }
+                }
+            }
+        },
+        "/api/posts/saved-collections/{collectionId}/posts/{postId}": {
+            "post": {
+                "tags": ["Posts"],
+                "summary": "Add a post to a saved collection",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    {
+                        "name": "collectionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": { "type": "string" }
+                    },
+                    {
+                        "name": "postId",
+                        "in": "path",
+                        "required": true,
+                        "schema": { "type": "string" }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Post added to collection and global saved posts"
+                    },
+                    "400": {
+                        "description": "Post not found or not visible for saving"
+                    },
+                    "404": {
+                        "description": "Saved collection not found"
+                    }
+                }
+            },
+            "delete": {
+                "tags": ["Posts"],
+                "summary": "Remove a post from a saved collection",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    {
+                        "name": "collectionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": { "type": "string" }
+                    },
+                    {
+                        "name": "postId",
+                        "in": "path",
+                        "required": true,
+                        "schema": { "type": "string" }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Post removed from collection"
+                    },
+                    "404": {
+                        "description": "Saved collection not found"
+                    }
+                }
+            }
+        },
+        "/api/posts/recently-viewed": {
+            "get": {
+                "tags": ["Posts"],
+                "summary": "Get the current user's recently viewed posts",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": { "type": "integer", "minimum": 1, "default": 1 }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 50,
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated lightweight posts the user opened most recently"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            }
+        },
         "/api/posts/hidden": {
             "get": {
                 "tags": [
