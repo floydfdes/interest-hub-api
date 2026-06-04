@@ -68,6 +68,33 @@
                 }
             }
         },
+        "/api/search": {
+            "get": {
+                "tags": ["Search"],
+                "summary": "Search users, posts, and tags together",
+                "parameters": [
+                    {
+                        "name": "query",
+                        "in": "query",
+                        "schema": { "type": "string", "minLength": 2 },
+                        "description": "Search text. q is also accepted."
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "schema": { "type": "integer", "minimum": 1, "maximum": 20, "default": 5 }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Grouped search results: users, posts, and tags"
+                    },
+                    "400": {
+                        "description": "Search query must contain at least 2 characters"
+                    }
+                }
+            }
+        },
         "/api/auth/register": {
             "post": {
                 "tags": [
@@ -1446,7 +1473,7 @@
                 "tags": [
                     "Users"
                 ],
-                "summary": "Get current user profile",
+                "summary": "Get current user profile with profile completion",
                 "security": [
                     {
                         "bearerAuth": []
@@ -1454,7 +1481,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "User profile returned"
+                        "description": "User profile returned with profileCompletion percentage, completedFields, and missingFields"
                     },
                     "401": {
                         "description": "Unauthorized"
@@ -1561,12 +1588,12 @@
         "/api/users/profile/{id}": {
             "get": {
                 "tags": ["Users"],
-                "summary": "Get a profile with mutual followers and pinned post",
+                "summary": "Get a profile with mutual followers, pinned post, and owner completion",
                 "parameters": [
                     { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
                 ],
                 "responses": {
-                    "200": { "description": "Profile returned. Includes mutualFollowers, mutualFollowersCount, and pinnedPost when accessible. canViewProfile is false when a private profile is not accessible." },
+                    "200": { "description": "Profile returned. Includes mutualFollowers, mutualFollowersCount, and pinnedPost when accessible. Includes profileCompletion only when the viewer is the profile owner. canViewProfile is false when a private profile is not accessible." },
                     "404": { "description": "User not found" }
                 }
             }

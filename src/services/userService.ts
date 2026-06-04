@@ -58,6 +58,30 @@ const getMutualFollowersSummary = async (
   };
 };
 
+export const getProfileCompletion = (user: {
+  name?: string;
+  username?: string;
+  bio?: string;
+  profilePic?: string | null;
+  interests?: string[];
+}) => {
+  const checks = [
+    { field: "name", complete: Boolean(user.name?.trim()) },
+    { field: "username", complete: Boolean(user.username?.trim()) },
+    { field: "bio", complete: Boolean(user.bio?.trim()) },
+    { field: "profilePic", complete: Boolean(user.profilePic) },
+    { field: "interests", complete: (user.interests ?? []).length > 0 },
+  ];
+  const completedFields = checks.filter((check) => check.complete).map((check) => check.field);
+  const missingFields = checks.filter((check) => !check.complete).map((check) => check.field);
+
+  return {
+    percentage: Math.round((completedFields.length / checks.length) * 100),
+    completedFields,
+    missingFields,
+  };
+};
+
 export const getUserById = async (id: string, viewerId?: string) => {
   const user = await User.findOne({ _id: id, isDeleted: false }).select(
     "name username profilePic bio interests followers following followRequests isPrivate savedPosts"
@@ -67,6 +91,7 @@ export const getUserById = async (id: string, viewerId?: string) => {
   const mutualFollowersSummary = await getMutualFollowersSummary(user.followers, user._id, viewerId);
   const isFollowing = includesUser(user.followers, viewerId);
   const hasRequestedFollow = includesUser(user.followRequests, viewerId);
+  const isOwner = user._id.toString() === viewerId;
   const baseProfile = {
     _id: user._id,
     name: user.name,
@@ -78,6 +103,7 @@ export const getUserById = async (id: string, viewerId?: string) => {
     followersCount: user.followers.length,
     followingCount: user.following.length,
     ...mutualFollowersSummary,
+    ...(isOwner && { profileCompletion: getProfileCompletion(user) }),
   };
   if (!canViewPrivateAccount(user, viewerId)) {
     return { ...baseProfile, canViewProfile: false };

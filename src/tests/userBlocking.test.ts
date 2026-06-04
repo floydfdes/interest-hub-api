@@ -37,6 +37,7 @@ import {
   getBlockedUsers,
   getFollowers,
   getMutedUsers,
+  getProfileCompletion,
   getUserById,
   getUserPosts,
   muteUser,
@@ -381,5 +382,23 @@ describe("private profiles", () => {
       getFollowers(targetId.toString(), { page: 1, limit: 20, skip: 0 }, userId.toString())
     ).resolves.toBe(false);
     expect(target.populate).not.toHaveBeenCalled();
+  });
+});
+
+describe("profile completion", () => {
+  it("calculates completed and missing profile fields", () => {
+    expect(
+      getProfileCompletion({
+        name: "Floyd",
+        username: "floyd",
+        bio: "",
+        profilePic: null,
+        interests: ["travel"],
+      })
+    ).toEqual({
+      percentage: 60,
+      completedFields: ["name", "username", "interests"],
+      missingFields: ["bio", "profilePic"],
+    });
   });
 });

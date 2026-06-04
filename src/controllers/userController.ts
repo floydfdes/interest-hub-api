@@ -12,6 +12,7 @@ import {
   getUserPosts,
   getSuggestedUsers,
   getUserById,
+  getProfileCompletion,
   searchUsers,
   muteUser,
   rejectFollowRequest,
@@ -45,7 +46,7 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
   }
 
   const user = await User.findOne({ _id: req.userId, isDeleted: false }).select(
-    "name email role profilePic bio interests isPrivate followers following followRequests blockedUsers mutedUsers hiddenPosts createdAt updatedAt"
+    "name username email role profilePic bio interests isPrivate followers following followRequests blockedUsers mutedUsers hiddenPosts createdAt updatedAt"
   );
 
   if (!user) {
@@ -53,7 +54,12 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
     return;
   }
 
-  res.status(200).json({ user });
+  res.status(200).json({
+    user: {
+      ...user.toObject(),
+      profileCompletion: getProfileCompletion(user),
+    },
+  });
 };
 
 const userActionErrorStatus = (error: unknown): number => {
