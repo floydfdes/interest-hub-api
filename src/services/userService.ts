@@ -2,7 +2,7 @@ import Post, { Visibility } from "../models/Post";
 import User from "../models/User";
 import { uploadImageToCloudinary } from "../utils/uploadImage";
 import { paginatedResponse, PaginationParams } from "../utils/pagination";
-import { formatPaginatedPostResponse } from "../utils/postResponse";
+import { formatPaginatedPostResponse, formatPostResponse } from "../utils/postResponse";
 
 const includesUser = (ids: { equals: (id: string) => boolean }[] = [], userId?: string) =>
   Boolean(userId && ids.some((id) => id.equals(userId)));
@@ -16,12 +16,55 @@ const canViewPrivateAccount = (
   viewerId?: string
 ) => !user.isPrivate || user._id.toString() === viewerId || includesUser(user.followers, viewerId);
 
+const getVisibleProfilePostVisibilities = (
+  user: {
+    _id: { toString: () => string };
+    followers: { equals: (id: string) => boolean }[];
+  },
+  viewerId?: string
+): Visibility[] => {
+  if (user._id.toString() === viewerId) return ["public", "followersOnly", "private"];
+  return includesUser(user.followers, viewerId) ? ["public", "followersOnly"] : ["public"];
+};
+
+const getMutualFollowersSummary = async (
+  targetFollowerIds: { toString: () => string }[],
+  targetUserId: { toString: () => string },
+  viewerId?: string
+) => {
+  if (!viewerId || targetUserId.toString() === viewerId) {
+    return { mutualFollowers: [], mutualFollowersCount: 0 };
+  }
+
+  const viewer = await User.findOne({ _id: viewerId, isDeleted: false }).select("following");
+  if (!viewer) return { mutualFollowers: [], mutualFollowersCount: 0 };
+
+  const targetFollowerIdSet = new Set(targetFollowerIds.map((id) => id.toString()));
+  const mutualFollowerIds = (viewer.following ?? []).filter((id) =>
+    targetFollowerIdSet.has(id.toString())
+  );
+  if (mutualFollowerIds.length === 0) {
+    return { mutualFollowers: [], mutualFollowersCount: 0 };
+  }
+
+  const mutualFollowers = await User.find({
+    _id: { $in: mutualFollowerIds.slice(0, 2) },
+    isDeleted: false,
+  }).select("name username profilePic");
+
+  return {
+    mutualFollowers,
+    mutualFollowersCount: mutualFollowerIds.length,
+  };
+};
+
 export const getUserById = async (id: string, viewerId?: string) => {
   const user = await User.findOne({ _id: id, isDeleted: false }).select(
-    "name username profilePic bio interests followers following followRequests isPrivate"
+    "name username profilePic bio interests followers following followRequests isPrivate savedPosts"
   );
   if (!user) return null;
 
+  const mutualFollowersSummary = await getMutualFollowersSummary(user.followers, user._id, viewerId);
   const isFollowing = includesUser(user.followers, viewerId);
   const hasRequestedFollow = includesUser(user.followRequests, viewerId);
   const baseProfile = {
@@ -34,22 +77,34 @@ export const getUserById = async (id: string, viewerId?: string) => {
     hasRequestedFollow,
     followersCount: user.followers.length,
     followingCount: user.following.length,
+    ...mutualFollowersSummary,
   };
   if (!canViewPrivateAccount(user, viewerId)) {
     return { ...baseProfile, canViewProfile: false };
   }
 
-  const postsCount = await Post.countDocuments({
+  const postVisibility = getVisibleProfilePostVisibilities(user, viewerId);
+  const visibleProfilePostFilter = {
     author: user._id,
     status: { $ne: "draft" as const },
+    visibility: { $in: postVisibility },
     isArchived: { $ne: true },
     isModerationHidden: { $ne: true },
-  });
+  };
+  const [postsCount, pinnedPost] = await Promise.all([
+    Post.countDocuments(visibleProfilePostFilter),
+    Post.findOne({ ...visibleProfilePostFilter, isPinned: true })
+      .sort({ pinnedAt: -1 })
+      .populate("author", "name profilePic"),
+  ]);
 
   return {
     ...baseProfile,
     canViewProfile: true,
     postsCount,
+    pinnedPost: pinnedPost
+      ? formatPostResponse(pinnedPost, viewerId, viewerId ? user.savedPosts : [])
+      : null,
     bio: user.bio,
     interests: user.interests,
   };
@@ -66,12 +121,7 @@ export const getUserPosts = async (
   if (!user) return null;
   if (!canViewPrivateAccount(user, viewerId)) return false;
 
-  const isOwner = user._id.toString() === viewerId;
-  const visibility: Visibility[] = isOwner
-    ? ["public", "followersOnly", "private"]
-    : includesUser(user.followers, viewerId)
-      ? ["public", "followersOnly"]
-      : ["public"];
+  const visibility = getVisibleProfilePostVisibilities(user, viewerId);
   const filter = {
     author: user._id,
     status: { $ne: "draft" as const },

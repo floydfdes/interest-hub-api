@@ -24,6 +24,7 @@ import {
   getTrendingPosts,
   hidePost,
   likePost,
+  pinPost,
   removeBookmark,
   removePostFromSavedCollection,
   publishDraftPost,
@@ -31,6 +32,7 @@ import {
   unlikePost,
   unhidePost,
   unarchivePost,
+  unpinPost,
   updateSavedCollection,
   updateDraftPost,
   updatePost,
@@ -88,5 +90,7 @@ router.post("/:id/hide", authMiddleware, hidePost);
 router.delete("/:id/hide", authMiddleware, unhidePost);
 router.patch("/:id/archive", authMiddleware, archivePost);
 router.patch("/:id/unarchive", authMiddleware, unarchivePost);
+router.patch("/:id/pin", authMiddleware, pinPost);
+router.patch("/:id/unpin", authMiddleware, unpinPost);
 
 export default router;

@@ -17,6 +17,8 @@ export interface IPost extends Document {
   viewCount: number;
   sharedFrom?: mongoose.Types.ObjectId;
   isEdited: boolean;
+  isPinned: boolean;
+  pinnedAt: Date | null;
   isArchived: boolean;
   archivedAt: Date | null;
   isModerationHidden: boolean;
@@ -48,6 +50,8 @@ const PostSchema = new Schema<IPost>(
     viewCount: { type: Number, default: 0 },
     sharedFrom: { type: Schema.Types.ObjectId, ref: "Post", default: null },
     isEdited: { type: Boolean, default: false },
+    isPinned: { type: Boolean, default: false, index: true },
+    pinnedAt: { type: Date, default: null },
     isArchived: { type: Boolean, default: false },
     archivedAt: { type: Date, default: null },
     isModerationHidden: { type: Boolean, default: false },

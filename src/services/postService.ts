@@ -863,8 +863,48 @@ export const archivePostService = async (id: string, userId: string, archive: bo
 
   post.isArchived = archive;
   post.archivedAt = archive ? new Date() : null;
+  if (archive) {
+    post.isPinned = false;
+    post.pinnedAt = null;
+  }
   await post.save();
   return formatPostResponse(post, userId);
+};
+
+export const pinPostService = async (id: string, userId: string) => {
+  const post = await Post.findOne({
+    _id: id,
+    author: userId,
+    status: { $ne: "draft" as const },
+    isArchived: { $ne: true },
+    isModerationHidden: { $ne: true },
+  });
+  if (!post) return null;
+
+  await Post.updateMany(
+    { author: userId, isPinned: true, _id: { $ne: post._id } },
+    { $set: { isPinned: false, pinnedAt: null } }
+  );
+
+  post.isPinned = true;
+  post.pinnedAt = new Date();
+  await post.save();
+
+  return formatPostResponse(post, userId, await getSavedPostIds(userId));
+};
+
+export const unpinPostService = async (id: string, userId: string) => {
+  const post = await Post.findOne({
+    _id: id,
+    author: userId,
+  });
+  if (!post) return null;
+
+  post.isPinned = false;
+  post.pinnedAt = null;
+  await post.save();
+
+  return formatPostResponse(post, userId, await getSavedPostIds(userId));
 };
 
 export const updatePostService = async (id: string, userId: string, updates: UpdatePostData) => {

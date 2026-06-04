@@ -1151,6 +1151,38 @@
                 }
             }
         },
+        "/api/posts/{id}/pin": {
+            "patch": {
+                "tags": ["Posts"],
+                "summary": "Pin an owned post on the authenticated user's profile",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Post pinned. Any previously pinned post by this user is unpinned."
+                    },
+                    "404": {
+                        "description": "Post not found, not owned by user, archived, draft, or hidden for moderation"
+                    }
+                }
+            }
+        },
+        "/api/posts/{id}/unpin": {
+            "patch": {
+                "tags": ["Posts"],
+                "summary": "Unpin an owned post from the authenticated user's profile",
+                "security": [{ "bearerAuth": [] }],
+                "parameters": [
+                    { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+                ],
+                "responses": {
+                    "200": { "description": "Post unpinned" },
+                    "404": { "description": "Post not found or not owned by user" }
+                }
+            }
+        },
         "/api/posts/review": {
             "get": {
                 "tags": ["Posts"],
@@ -1529,12 +1561,12 @@
         "/api/users/profile/{id}": {
             "get": {
                 "tags": ["Users"],
-                "summary": "Get a public profile or restricted private-profile summary",
+                "summary": "Get a profile with mutual followers and pinned post",
                 "parameters": [
                     { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
                 ],
                 "responses": {
-                    "200": { "description": "Profile returned. Accessible profiles include postsCount for non-archived, non-moderation-hidden posts; canViewProfile is false when a private profile is not accessible." },
+                    "200": { "description": "Profile returned. Includes mutualFollowers, mutualFollowersCount, and pinnedPost when accessible. canViewProfile is false when a private profile is not accessible." },
                     "404": { "description": "User not found" }
                 }
             }

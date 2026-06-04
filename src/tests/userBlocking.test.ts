@@ -1,12 +1,18 @@
 import mongoose from "mongoose";
 
 const mockUserFindOne = jest.fn();
+const mockUserFindSelect = jest.fn();
+const mockUserFind = jest.fn(() => ({ select: mockUserFindSelect }));
 const mockPostCountDocuments = jest.fn();
 const mockPostFind = jest.fn();
+const mockPostFindOnePopulate = jest.fn().mockResolvedValue(null);
+const mockPostFindOneSort = jest.fn(() => ({ populate: mockPostFindOnePopulate }));
+const mockPostFindOne = jest.fn(() => ({ sort: mockPostFindOneSort }));
 
 jest.mock("../models/User", () => ({
   __esModule: true,
   default: {
+    find: mockUserFind,
     findOne: mockUserFindOne,
   },
 }));
@@ -16,6 +22,7 @@ jest.mock("../models/Post", () => ({
   default: {
     countDocuments: mockPostCountDocuments,
     find: mockPostFind,
+    findOne: mockPostFindOne,
   },
 }));
 
@@ -48,6 +55,7 @@ const createUser = (id: mongoose.Types.ObjectId) => ({
   blockedUsers: [] as mongoose.Types.ObjectId[],
   mutedUsers: [] as mongoose.Types.ObjectId[],
   isPrivate: false,
+  savedPosts: [] as mongoose.Types.ObjectId[],
   save: jest.fn().mockResolvedValue(undefined),
 });
 
@@ -55,6 +63,8 @@ describe("personal user muting", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockPostCountDocuments.mockResolvedValue(3);
+    mockUserFindSelect.mockResolvedValue([]);
+    mockPostFindOnePopulate.mockResolvedValue(null);
   });
 
   it("mutes a user without removing a follow relationship", async () => {
@@ -96,7 +106,7 @@ describe("personal user muting", () => {
 
     expect(populate).toHaveBeenCalledWith({
       path: "mutedUsers",
-      select: "name profilePic",
+      select: "name username profilePic",
       options: { skip: 0, limit: 20 },
     });
     expect(result?.pagination.total).toBe(1);
@@ -179,7 +189,7 @@ describe("personal user blocking", () => {
     expect(select).toHaveBeenCalledWith("blockedUsers");
     expect(populate).toHaveBeenCalledWith({
       path: "blockedUsers",
-      select: "name profilePic",
+      select: "name username profilePic",
       options: { skip: 0, limit: 20 },
     });
     expect(result?.pagination.total).toBe(1);
@@ -225,7 +235,9 @@ describe("private profiles", () => {
       isPrivate: true,
     };
     const select = jest.fn().mockResolvedValue(target);
-    mockUserFindOne.mockReturnValueOnce({ select });
+    mockUserFindOne
+      .mockReturnValueOnce({ select })
+      .mockReturnValueOnce({ select: jest.fn().mockResolvedValue({ following: [] }) });
 
     const profile = await getUserById(targetId.toString(), userId.toString());
     expect(profile).toEqual(
@@ -246,7 +258,9 @@ describe("private profiles", () => {
       interests: ["travel"],
     };
     const select = jest.fn().mockResolvedValue(target);
-    mockUserFindOne.mockReturnValueOnce({ select });
+    mockUserFindOne
+      .mockReturnValueOnce({ select })
+      .mockReturnValueOnce({ select: jest.fn().mockResolvedValue({ following: [] }) });
 
     const profile = await getUserById(targetId.toString(), userId.toString());
 
@@ -256,6 +270,54 @@ describe("private profiles", () => {
       isArchived: { $ne: true },
       isModerationHidden: { $ne: true },
       status: { $ne: "draft" },
+      visibility: { $in: ["public"] },
+    });
+  });
+
+  it("returns mutual followers and the pinned post for an accessible profile", async () => {
+    const mutualFollowerId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439019");
+    const target = {
+      ...createUser(targetId),
+      followers: [mutualFollowerId],
+      name: "Public User",
+      profilePic: null,
+    };
+    const viewer = { following: [mutualFollowerId] };
+    const mutualFollower = {
+      _id: mutualFollowerId,
+      name: "Alex",
+      username: "alex",
+      profilePic: null,
+    };
+    const pinnedPost = {
+      _id: new mongoose.Types.ObjectId("507f1f77bcf86cd799439020"),
+      author: targetId,
+      isPinned: true,
+      likes: [],
+      comments: [],
+    };
+    mockUserFindOne
+      .mockReturnValueOnce({ select: jest.fn().mockResolvedValue(target) })
+      .mockReturnValueOnce({ select: jest.fn().mockResolvedValue(viewer) });
+    mockUserFindSelect.mockResolvedValueOnce([mutualFollower]);
+    mockPostFindOnePopulate.mockResolvedValueOnce(pinnedPost);
+
+    const profile = await getUserById(targetId.toString(), userId.toString());
+
+    expect(profile).toEqual(
+      expect.objectContaining({
+        mutualFollowers: [mutualFollower],
+        mutualFollowersCount: 1,
+        pinnedPost: expect.objectContaining({ _id: pinnedPost._id, isPinned: true }),
+      })
+    );
+    expect(mockPostFindOne).toHaveBeenCalledWith({
+      author: targetId,
+      isArchived: { $ne: true },
+      isModerationHidden: { $ne: true },
+      status: { $ne: "draft" },
+      visibility: { $in: ["public"] },
+      isPinned: true,
     });
   });
 

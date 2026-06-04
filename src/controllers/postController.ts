@@ -27,6 +27,7 @@ import {
   getPostLikesService,
   removeBookmarkService,
   removePostFromSavedCollectionService,
+  pinPostService,
   publishDraftPostService,
   searchPostsService,
   TrendingPeriod,
@@ -35,6 +36,7 @@ import {
   updateSavedCollectionService,
   updateDraftPostService,
   updatePostService,
+  unpinPostService,
 } from "../services/postService";
 
 import mongoose from "mongoose";
@@ -606,6 +608,36 @@ export const unarchivePost = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     logError("Failed to unarchive post", error, { postId: req.params.id, userId: req.userId });
     res.status(500).json({ message: "Failed to unarchive post" });
+  }
+};
+
+export const pinPost = async (req: AuthRequest, res: Response) => {
+  try {
+    const post = await pinPostService(req.params.id, req.userId!);
+    if (!post) {
+      res.status(404).json({ message: "Post not found" });
+      return;
+    }
+
+    res.status(200).json({ message: "Post pinned", post });
+  } catch (error) {
+    logError("Failed to pin post", error, { postId: req.params.id, userId: req.userId });
+    res.status(500).json({ message: "Failed to pin post" });
+  }
+};
+
+export const unpinPost = async (req: AuthRequest, res: Response) => {
+  try {
+    const post = await unpinPostService(req.params.id, req.userId!);
+    if (!post) {
+      res.status(404).json({ message: "Post not found" });
+      return;
+    }
+
+    res.status(200).json({ message: "Post unpinned", post });
+  } catch (error) {
+    logError("Failed to unpin post", error, { postId: req.params.id, userId: req.userId });
+    res.status(500).json({ message: "Failed to unpin post" });
   }
 };
 
