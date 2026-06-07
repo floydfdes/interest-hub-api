@@ -217,6 +217,14 @@ export const deleteUserAccount = async (userId: string) => {
   return User.findByIdAndUpdate(userId, { isDeleted: true, deletedAt: new Date() });
 };
 
+export const deactivateUserAccount = async (userId: string) => {
+  return User.findOneAndUpdate(
+    { _id: userId, isDeleted: false },
+    { $set: { isDeactivated: true, deactivatedAt: new Date() } },
+    { new: true }
+  );
+};
+
 export const followUser = async (userId: string, targetUserId: string) => {
   if (userId === targetUserId) throw new Error("Cannot follow yourself");
 

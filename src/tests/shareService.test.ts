@@ -3,7 +3,8 @@ import mongoose from "mongoose";
 const mockShareCreate = jest.fn();
 const mockShareCountDocuments = jest.fn();
 const mockSharePopulateTargetUser = jest.fn().mockResolvedValue([]);
-const mockSharePopulatePost = jest.fn(() => ({ populate: mockSharePopulateTargetUser }));
+const mockSharePopulateComment = jest.fn(() => ({ populate: mockSharePopulateTargetUser }));
+const mockSharePopulatePost = jest.fn(() => ({ populate: mockSharePopulateComment }));
 const mockSharePopulateRecipient = jest.fn(() => ({ populate: mockSharePopulatePost }));
 const mockSharePopulateSender = jest.fn(() => ({ populate: mockSharePopulateRecipient }));
 const mockShareLimit = jest.fn(() => ({ populate: mockSharePopulateSender }));
@@ -13,6 +14,8 @@ const mockShareFind = jest.fn(() => ({ sort: mockShareSort }));
 
 const mockPostSelect = jest.fn();
 const mockPostFindOne = jest.fn(() => ({ select: mockPostSelect }));
+const mockCommentSelect = jest.fn();
+const mockCommentFindOne = jest.fn(() => ({ select: mockCommentSelect }));
 
 const mockUserFindOne = jest.fn();
 
@@ -31,6 +34,13 @@ jest.mock("../models/Post", () => ({
   __esModule: true,
   default: {
     findOne: mockPostFindOne,
+  },
+}));
+
+jest.mock("../models/Comment", () => ({
+  __esModule: true,
+  default: {
+    findOne: mockCommentFindOne,
   },
 }));
 
@@ -67,6 +77,7 @@ describe("shareService", () => {
     jest.clearAllMocks();
     mockShareCountDocuments.mockResolvedValue(2);
     mockSharePopulateTargetUser.mockResolvedValue([]);
+    mockSharePopulateComment.mockReturnValue({ populate: mockSharePopulateTargetUser });
     mockCreateNotification.mockResolvedValue({});
     mockShareCreate.mockResolvedValue({
       _id: new mongoose.Types.ObjectId(),
@@ -168,6 +179,43 @@ describe("shareService", () => {
       type: "profile_shared",
       targetUserId: profileId,
       message: "Someone shared a profile with you.",
+    });
+  });
+
+  it("shares a visible comment and notifies the recipient", async () => {
+    const commentId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439015");
+    mockCommentSelect.mockResolvedValueOnce({
+      _id: commentId,
+      post: postId,
+      content: "Useful comment",
+    });
+    mockPostSelect.mockResolvedValueOnce({
+      _id: postId,
+      author: senderId,
+      visibility: "public",
+    });
+
+    await createShareService({
+      senderId: senderId.toString(),
+      recipientId: recipientId.toString(),
+      targetType: "comment",
+      targetId: commentId.toString(),
+    });
+
+    expect(mockShareCreate).toHaveBeenCalledWith({
+      sender: senderId,
+      recipient: recipientId,
+      targetType: "comment",
+      post: postId,
+      comment: commentId,
+    });
+    expect(mockCreateNotification).toHaveBeenCalledWith({
+      recipientId: recipientId.toString(),
+      actorId: senderId.toString(),
+      type: "comment_shared",
+      postId,
+      commentId,
+      message: "Someone shared a comment with you.",
     });
   });
 

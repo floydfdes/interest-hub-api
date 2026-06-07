@@ -1,4 +1,4 @@
-const mockFindByIdAndUpdate = jest.fn();
+const mockFindOneAndUpdate = jest.fn();
 const mockReportFindOne = jest.fn();
 const mockReportCreate = jest.fn();
 const mockCreateNotification = jest.fn();
@@ -7,7 +7,7 @@ const mockNotifyMentionedUsers = jest.fn();
 jest.mock("../models/Comment", () => ({
   __esModule: true,
   default: {
-    findByIdAndUpdate: mockFindByIdAndUpdate,
+    findOneAndUpdate: mockFindOneAndUpdate,
   },
 }));
 
@@ -44,7 +44,7 @@ describe("replyToCommentService", () => {
 
   it("populates comment and reply authors in its response", async () => {
     const comment = { populate: jest.fn().mockResolvedValue(undefined) };
-    mockFindByIdAndUpdate.mockResolvedValue(comment);
+    mockFindOneAndUpdate.mockResolvedValue(comment);
 
     const result = await replyToCommentService(
       "507f1f77bcf86cd799439011",
@@ -64,13 +64,19 @@ describe("replyToCommentService", () => {
     const commentObjectId = new mongoose.Types.ObjectId(commentId);
     const comment = { _id: commentObjectId, populate: jest.fn().mockResolvedValue(undefined) };
     const flaggedWord = String.fromCharCode(115, 104, 105, 116);
-    mockFindByIdAndUpdate.mockResolvedValue(comment);
+    mockFindOneAndUpdate.mockResolvedValue(comment);
 
     await replyToCommentService(commentId, "507f1f77bcf86cd799439012", `This is ${flaggedWord}`);
 
-    expect(mockFindByIdAndUpdate).toHaveBeenCalledWith(
-      commentId,
+    expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
+      { _id: commentId, isDeleted: { $ne: true } },
       expect.objectContaining({
+        $push: {
+          replies: expect.objectContaining({
+            isDeleted: false,
+            deletedAt: null,
+          }),
+        },
         $set: { isModerationHidden: true, needsReview: true },
         $addToSet: { moderationReasons: { $each: ["bad_language"] } },
       }),

@@ -8,6 +8,8 @@ import { createNotification } from "./notificationService";
 import { notifyMentionedUsers } from "./mentionService";
 import { paginatedResponse, PaginationParams } from "../utils/pagination";
 
+const DELETED_COMMENT_CONTENT = "This comment was deleted.";
+
 const populateCommentUsers = async (comment: IComment | null): Promise<IComment | null> => {
   if (!comment) return null;
 
@@ -127,7 +129,7 @@ export const editCommentService = async (
   userId: string,
   content: string
 ): Promise<IComment | null> => {
-  const comment = await CommentModel.findOne({ _id: commentId, user: userId });
+  const comment = await CommentModel.findOne({ _id: commentId, user: userId, isDeleted: false });
   if (!comment) return null;
   const previousText = comment.content;
 
@@ -168,10 +170,15 @@ export const deleteCommentService = async (
   commentId: string,
   userId: string
 ): Promise<IComment | null> => {
-  const comment = await CommentModel.findOneAndDelete({ _id: commentId, user: userId });
-  if (comment) {
-    await Post.findByIdAndUpdate(comment.post, { $pull: { comments: comment._id } });
-  }
+  const comment = await CommentModel.findOne({ _id: commentId, user: userId, isDeleted: false });
+  if (!comment) return null;
+
+  comment.content = DELETED_COMMENT_CONTENT;
+  comment.likes = [];
+  comment.isDeleted = true;
+  comment.deletedAt = new Date();
+  await comment.save();
+
   return populateCommentUsers(comment);
 };
 
@@ -179,8 +186,8 @@ export const likeCommentService = async (
   commentId: string,
   userId: string
 ): Promise<IComment | null> => {
-  const comment = await CommentModel.findByIdAndUpdate(
-    commentId,
+  const comment = await CommentModel.findOneAndUpdate(
+    { _id: commentId, isDeleted: { $ne: true } },
     { $addToSet: { likes: userId } },
     { new: true }
   );
@@ -191,8 +198,8 @@ export const unlikeCommentService = async (
   commentId: string,
   userId: string
 ): Promise<IComment | null> => {
-  const comment = await CommentModel.findByIdAndUpdate(
-    commentId,
+  const comment = await CommentModel.findOneAndUpdate(
+    { _id: commentId, isDeleted: { $ne: true } },
     { $pull: { likes: userId } },
     { new: true }
   );
@@ -209,10 +216,12 @@ export const replyToCommentService = async (
     user: new mongoose.Types.ObjectId(userId),
     content,
     likes: [],
+    isDeleted: false,
+    deletedAt: null,
     createdAt: new Date(),
   };
-  const comment = await CommentModel.findByIdAndUpdate(
-    commentId,
+  const comment = await CommentModel.findOneAndUpdate(
+    { _id: commentId, isDeleted: { $ne: true } },
     {
       $push: { replies: reply },
       ...(moderation.needsReview && {
@@ -255,6 +264,7 @@ export const editReplyService = async (
   const comment = await CommentModel.findOne({
     _id: commentId,
     [`replies.${replyIndex}.user`]: userId,
+    [`replies.${replyIndex}.isDeleted`]: { $ne: true },
   });
 
   if (!comment || !comment.replies[replyIndex]) return null;
@@ -299,10 +309,14 @@ export const deleteReplyService = async (
   const comment = await CommentModel.findOne({
     _id: commentId,
     [`replies.${replyIndex}.user`]: userId,
+    [`replies.${replyIndex}.isDeleted`]: { $ne: true },
   });
 
   if (!comment || !comment.replies[replyIndex]) return null;
-  comment.replies.splice(replyIndex, 1);
+  comment.replies[replyIndex].content = DELETED_COMMENT_CONTENT;
+  comment.replies[replyIndex].likes = [];
+  comment.replies[replyIndex].isDeleted = true;
+  comment.replies[replyIndex].deletedAt = new Date();
   await comment.save();
   return populateCommentUsers(comment);
 };
@@ -314,7 +328,9 @@ export const likeReplyService = async (
 ): Promise<IComment | null> => {
   const comment = await CommentModel.findById(commentId);
 
-  if (!comment || !comment.replies[replyIndex]) return null;
+  if (!comment || !comment.replies[replyIndex] || comment.replies[replyIndex].isDeleted) {
+    return null;
+  }
   const reply = comment.replies[replyIndex];
   if (!reply.likes.some((likeId) => likeId.equals(userId))) {
     reply.likes.push(new mongoose.Types.ObjectId(userId));
@@ -330,7 +346,9 @@ export const unlikeReplyService = async (
 ): Promise<IComment | null> => {
   const comment = await CommentModel.findById(commentId);
 
-  if (!comment || !comment.replies[replyIndex]) return null;
+  if (!comment || !comment.replies[replyIndex] || comment.replies[replyIndex].isDeleted) {
+    return null;
+  }
   const reply = comment.replies[replyIndex];
   reply.likes = reply.likes.filter((likeId) => likeId.toString() !== userId);
   await comment.save();
@@ -344,13 +362,22 @@ export const replyToReplyService = async (
   content: string
 ): Promise<IComment | null> => {
   const comment = await CommentModel.findById(commentId);
-  if (!comment || !comment.replies[parentReplyIndex]) return null;
+  if (
+    !comment ||
+    comment.isDeleted ||
+    !comment.replies[parentReplyIndex] ||
+    comment.replies[parentReplyIndex].isDeleted
+  ) {
+    return null;
+  }
 
   const moderation = analyzeContentModeration([content]);
   const reply = {
     user: new mongoose.Types.ObjectId(userId),
     content,
     likes: [],
+    isDeleted: false,
+    deletedAt: null,
     createdAt: new Date(),
   };
 

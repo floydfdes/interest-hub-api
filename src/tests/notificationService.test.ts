@@ -15,6 +15,9 @@ const mockLimit = jest.fn(() => ({ populate: mockPopulateActor }));
 const mockSkip = jest.fn(() => ({ limit: mockLimit }));
 const mockSort = jest.fn(() => ({ skip: mockSkip }));
 const mockNotificationFind = jest.fn(() => ({ sort: mockSort }));
+const mockUserSelect = jest.fn();
+const mockUserFindOne = jest.fn(() => ({ select: mockUserSelect }));
+const mockUserFindOneAndUpdate = jest.fn(() => ({ select: mockUserSelect }));
 
 jest.mock("../models/Notification", () => ({
   __esModule: true,
@@ -29,17 +32,27 @@ jest.mock("../models/Notification", () => ({
   },
 }));
 
+jest.mock("../models/User", () => ({
+  __esModule: true,
+  default: {
+    findOne: mockUserFindOne,
+    findOneAndUpdate: mockUserFindOneAndUpdate,
+  },
+}));
+
 import {
   clearAllNotificationsService,
   clearReadNotificationsService,
   createNotification,
   deleteNotificationService,
   getNotificationsService,
+  getNotificationPreferencesService,
   getUnreadNotificationCountService,
   markAllNotificationsUnreadService,
   markAllNotificationsReadService,
   markNotificationReadService,
   markNotificationUnreadService,
+  updateNotificationPreferencesService,
 } from "../services/notificationService";
 
 describe("notificationService", () => {
@@ -51,6 +64,18 @@ describe("notificationService", () => {
     jest.clearAllMocks();
     mockPopulateTargetUser.mockResolvedValue([]);
     mockNotificationCountDocuments.mockResolvedValue(2);
+    mockUserSelect.mockResolvedValue({
+      notificationPreferences: {
+        likes: true,
+        comments: true,
+        replies: true,
+        follows: true,
+        followRequests: true,
+        mentions: true,
+        shares: true,
+        moderation: true,
+      },
+    });
   });
 
   it("creates a notification for another user", async () => {
@@ -87,6 +112,62 @@ describe("notificationService", () => {
     ).resolves.toBeNull();
 
     expect(mockNotificationCreate).not.toHaveBeenCalled();
+  });
+
+  it("does not create notifications disabled by user preferences", async () => {
+    mockUserSelect.mockResolvedValueOnce({
+      notificationPreferences: {
+        likes: false,
+      },
+    });
+
+    await expect(
+      createNotification({
+        recipientId,
+        actorId,
+        type: "post_liked",
+        message: "Someone liked your post.",
+      })
+    ).resolves.toBeNull();
+
+    expect(mockNotificationCreate).not.toHaveBeenCalled();
+  });
+
+  it("gets and updates notification preferences", async () => {
+    const preferences = {
+      likes: true,
+      comments: false,
+      replies: true,
+      follows: true,
+      followRequests: true,
+      mentions: true,
+      shares: false,
+      moderation: true,
+    };
+    mockUserSelect.mockResolvedValueOnce({ notificationPreferences: preferences });
+    await expect(getNotificationPreferencesService(recipientId.toString())).resolves.toEqual(
+      preferences
+    );
+
+    mockUserSelect.mockResolvedValueOnce({ notificationPreferences: preferences });
+    await expect(
+      updateNotificationPreferencesService(recipientId.toString(), {
+        comments: false,
+        shares: false,
+        unknown: false,
+      })
+    ).resolves.toEqual(preferences);
+
+    expect(mockUserFindOneAndUpdate).toHaveBeenCalledWith(
+      { _id: recipientId.toString(), isDeleted: false },
+      {
+        $set: {
+          "notificationPreferences.comments": false,
+          "notificationPreferences.shares": false,
+        },
+      },
+      { new: true }
+    );
   });
 
   it("returns paginated notifications for a user", async () => {

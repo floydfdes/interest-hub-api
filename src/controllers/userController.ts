@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import {
   acceptFollowRequest,
   blockUser,
+  deactivateUserAccount,
   deleteUserAccount,
   followUser,
   getBlockedUsers,
@@ -151,6 +152,21 @@ export const deleteAccount = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     logError("Failed to delete account", error, { userId: req.userId });
     res.status(500).json({ message: "Failed to delete account" });
+  }
+};
+
+export const deactivateAccount = async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await deactivateUserAccount(req.userId!);
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.status(200).json({ message: "Account deactivated" });
+  } catch (error) {
+    logError("Failed to deactivate account", error, { userId: req.userId });
+    res.status(500).json({ message: "Failed to deactivate account" });
   }
 };
 

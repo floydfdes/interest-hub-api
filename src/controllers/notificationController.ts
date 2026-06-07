@@ -4,12 +4,14 @@ import {
   clearAllNotificationsService,
   clearReadNotificationsService,
   deleteNotificationService,
+  getNotificationPreferencesService,
   getNotificationsService,
   getUnreadNotificationCountService,
   markAllNotificationsUnreadService,
   markAllNotificationsReadService,
   markNotificationReadService,
   markNotificationUnreadService,
+  updateNotificationPreferencesService,
 } from "../services/notificationService";
 import { logError } from "../utils/logger";
 import { getPagination } from "../utils/pagination";
@@ -29,6 +31,41 @@ export const getUnreadNotificationCount = async (req: AuthRequest, res: Response
   } catch (error) {
     logError("Failed to fetch unread notification count", error, { userId: req.userId });
     res.status(500).json({ message: "Failed to fetch unread notification count" });
+  }
+};
+
+export const getNotificationPreferences = async (req: AuthRequest, res: Response) => {
+  try {
+    const preferences = await getNotificationPreferencesService(req.userId!);
+    if (!preferences) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.status(200).json(preferences);
+  } catch (error) {
+    logError("Failed to fetch notification preferences", error, { userId: req.userId });
+    res.status(500).json({ message: "Failed to fetch notification preferences" });
+  }
+};
+
+export const updateNotificationPreferences = async (req: AuthRequest, res: Response) => {
+  try {
+    const preferences = await updateNotificationPreferencesService(req.userId!, req.body);
+    if (!preferences) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.status(200).json(preferences);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to update preferences";
+    if (message === "Provide at least one notification preference") {
+      res.status(400).json({ message });
+      return;
+    }
+    logError("Failed to update notification preferences", error, { userId: req.userId });
+    res.status(500).json({ message: "Failed to update notification preferences" });
   }
 };
 

@@ -4,6 +4,8 @@ interface IReply {
   user: mongoose.Types.ObjectId;
   content: string;
   likes: mongoose.Types.ObjectId[];
+  isDeleted: boolean;
+  deletedAt: Date | null;
   createdAt: Date;
 }
 
@@ -13,6 +15,8 @@ export interface IComment extends Document {
   content: string;
   likes: mongoose.Types.ObjectId[];
   replies: IReply[];
+  isDeleted: boolean;
+  deletedAt: Date | null;
   isModerationHidden: boolean;
   needsReview: boolean;
   moderationReasons: string[];
@@ -25,6 +29,8 @@ const ReplySchema = new Schema<IReply>(
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     content: { type: String, required: true },
     likes: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date, default: null },
     createdAt: { type: Date, default: Date.now },
   },
   { _id: false }
@@ -37,6 +43,8 @@ const CommentSchema = new Schema<IComment>(
     content: { type: String, required: true },
     likes: [{ type: Schema.Types.ObjectId, ref: "User" }],
     replies: [ReplySchema],
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date, default: null },
     isModerationHidden: { type: Boolean, default: false },
     needsReview: { type: Boolean, default: false },
     moderationReasons: [{ type: String }],

@@ -42,12 +42,13 @@ import { createPostValidation, updatePostValidation } from "../middleware/valida
 import express from "express";
 import authMiddleware, { optionalAuthMiddleware } from "../middleware/authMiddleware";
 import { getPostComments } from "../controllers/commentController";
+import { createContentRateLimiter, socialActionRateLimiter } from "../middleware/rateLimiters";
 import validate from "../middleware/validate";
 
 const router = express.Router();
 
-router.post("/", authMiddleware, createPostValidation, validate, createPost);
-router.post("/drafts", authMiddleware, updatePostValidation, validate, createDraftPost);
+router.post("/", authMiddleware, createContentRateLimiter, createPostValidation, validate, createPost);
+router.post("/drafts", authMiddleware, createContentRateLimiter, updatePostValidation, validate, createDraftPost);
 router.get("/", optionalAuthMiddleware, getAllPosts);
 router.get("/search", optionalAuthMiddleware, searchPosts);
 router.get("/advanced-search", optionalAuthMiddleware, advancedSearchPosts);
@@ -76,15 +77,15 @@ router.get("/archived", authMiddleware, getArchivedPosts);
 router.get("/review", authMiddleware, getPostsUnderReview);
 router.get("/drafts", authMiddleware, getDraftPosts);
 router.put("/drafts/:id", authMiddleware, updatePostValidation, validate, updateDraftPost);
-router.post("/drafts/:id/publish", authMiddleware, publishDraftPost);
+router.post("/drafts/:id/publish", authMiddleware, createContentRateLimiter, publishDraftPost);
 router.get("/:id/comments", optionalAuthMiddleware, getPostComments);
 router.get("/:id/likes", getPostLikes);
 router.get("/:id", optionalAuthMiddleware, getPostById);
 router.put("/:id", authMiddleware, updatePostValidation, validate, updatePost);
 router.delete("/:id", authMiddleware, deletePost);
-router.post("/:id/like", authMiddleware, likePost);
-router.post("/:id/unlike", authMiddleware, unlikePost);
-router.post("/:id/bookmark", authMiddleware, bookmarkPost);
+router.post("/:id/like", authMiddleware, socialActionRateLimiter, likePost);
+router.post("/:id/unlike", authMiddleware, socialActionRateLimiter, unlikePost);
+router.post("/:id/bookmark", authMiddleware, socialActionRateLimiter, bookmarkPost);
 router.delete("/:id/bookmark", authMiddleware, removeBookmark);
 router.post("/:id/hide", authMiddleware, hidePost);
 router.delete("/:id/hide", authMiddleware, unhidePost);

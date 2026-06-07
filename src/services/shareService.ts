@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import Comment from "../models/Comment";
 import Post from "../models/Post";
 import Share, { ShareTargetType } from "../models/Share";
 import User from "../models/User";
@@ -45,6 +46,7 @@ const populateShareQuery = (query: PopulatableShareQuery) =>
     .populate("sender", "name profilePic")
     .populate("recipient", "name profilePic")
     .populate("post", "title image visibility")
+    .populate("comment", "content isDeleted")
     .populate("targetUser", "name profilePic isPrivate");
 
 export const createShareService = async ({
@@ -55,11 +57,6 @@ export const createShareService = async ({
   message,
 }: CreateShareInput) => {
   if (senderId === recipientId) throw new Error("Cannot share with yourself");
-  if (targetType === "comment") {
-    // TODO: enable comment sharing after enforcing parent post visibility for sender and recipient.
-    throw new Error("Comment sharing is not implemented yet");
-  }
-
   const [sender, recipient] = await Promise.all([
     User.findOne({ _id: senderId, isDeleted: false }).select("_id blockedUsers"),
     User.findOne({ _id: recipientId, isDeleted: false }).select("_id blockedUsers"),
@@ -108,6 +105,55 @@ export const createShareService = async ({
       { path: "sender", select: "name profilePic" },
       { path: "recipient", select: "name profilePic" },
       { path: "post", select: "title image visibility" },
+    ]);
+  }
+
+  if (targetType === "comment") {
+    const comment = await Comment.findOne({
+      _id: targetId,
+      isDeleted: { $ne: true },
+      isModerationHidden: { $ne: true },
+    }).select("post content");
+    if (!comment) return null;
+
+    const post = await Post.findOne({
+      _id: comment.post,
+      status: { $ne: "draft" as const },
+      isArchived: { $ne: true },
+      isModerationHidden: { $ne: true },
+    }).select("author visibility");
+    if (!post) return null;
+
+    const [senderCanView, recipientCanView] = await Promise.all([
+      canViewPost(post, senderId),
+      canViewPost(post, recipientId),
+    ]);
+    if (!senderCanView) throw new Error("You cannot share this comment");
+    if (!recipientCanView) throw new Error("Recipient cannot view this comment");
+
+    const share = await Share.create({
+      sender: toObjectId(senderId),
+      recipient: toObjectId(recipientId),
+      targetType,
+      post: post._id,
+      comment: comment._id,
+      ...(message && { message }),
+    });
+
+    await createNotification({
+      recipientId,
+      actorId: senderId,
+      type: "comment_shared",
+      postId: post._id as mongoose.Types.ObjectId,
+      commentId: comment._id as mongoose.Types.ObjectId,
+      message: "Someone shared a comment with you.",
+    });
+
+    return share.populate([
+      { path: "sender", select: "name profilePic" },
+      { path: "recipient", select: "name profilePic" },
+      { path: "post", select: "title image visibility" },
+      { path: "comment", select: "content isDeleted" },
     ]);
   }
 

@@ -3,6 +3,7 @@ import {
   changePasswordService,
   forgotPasswordService,
   loginUserService,
+  reactivateUserService,
   refreshAccessTokenService,
   registerUserService,
   resetPasswordService,
@@ -59,6 +60,27 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
       })
       .status(200)
       .json({ token, user });
+  } catch (err: any) {
+    res.status(401).json({ message: err.message });
+  }
+};
+
+export const reactivateUser = async (req: Request, res: Response): Promise<void> => {
+  const { email, password } = req.body;
+
+  try {
+    const { token, refreshToken, user } = await reactivateUserService(email, password);
+
+    res
+      .cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/api/auth",
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      })
+      .status(200)
+      .json({ token, user, message: "Account reactivated" });
   } catch (err: any) {
     res.status(401).json({ message: err.message });
   }

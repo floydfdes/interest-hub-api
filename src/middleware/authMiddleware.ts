@@ -1,12 +1,13 @@
 import { NextFunction, Request, Response } from "express";
 
+import User from "../models/User";
 import { verifyToken } from "../utils/token";
 
 interface AuthRequest extends Request {
   userId?: string;
 }
 
-const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction): void => {
+const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -18,6 +19,16 @@ const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction): vo
 
   try {
     const decoded = verifyToken(token, "access");
+    const user = await User.findOne({
+      _id: decoded.userId,
+      isDeleted: false,
+      isBlocked: false,
+      isDeactivated: { $ne: true },
+    }).select("_id");
+    if (!user) {
+      res.status(401).json({ message: "Account is inactive or unavailable" });
+      return;
+    }
     req.userId = decoded.userId;
     next();
   } catch {
@@ -42,8 +53,24 @@ export const optionalAuthMiddleware = (
 
   try {
     const decoded = verifyToken(authHeader.split(" ")[1], "access");
-    req.userId = decoded.userId;
-    next();
+    User.findOne({
+      _id: decoded.userId,
+      isDeleted: false,
+      isBlocked: false,
+      isDeactivated: { $ne: true },
+    })
+      .select("_id")
+      .then((user) => {
+        if (!user) {
+          res.status(401).json({ message: "Account is inactive or unavailable" });
+          return;
+        }
+        req.userId = decoded.userId;
+        next();
+      })
+      .catch(() => {
+        res.status(401).json({ message: "Invalid or expired token" });
+      });
   } catch {
     res.status(401).json({ message: "Invalid or expired token" });
   }

@@ -3,8 +3,8 @@ import { body } from "express-validator";
 export const createShareValidation = [
   body("recipientId").isMongoId().withMessage("Valid recipientId is required"),
   body("targetType")
-    .isIn(["post", "profile"])
-    .withMessage("targetType must be one of: post, profile"),
+    .isIn(["post", "profile", "comment"])
+    .withMessage("targetType must be one of: post, profile, comment"),
   body("targetId").isMongoId().withMessage("Valid targetId is required"),
   body("message")
     .optional()

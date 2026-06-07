@@ -33,7 +33,8 @@ export const createShare = async (req: AuthRequest, res: Response) => {
         "Cannot share with this user",
         "You cannot share this post",
         "Recipient cannot view this post",
-        "Comment sharing is not implemented yet",
+        "You cannot share this comment",
+        "Recipient cannot view this comment",
       ].includes(message)
     ) {
       res.status(400).json({ message });

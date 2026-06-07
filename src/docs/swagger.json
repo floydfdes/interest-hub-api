@@ -180,6 +180,31 @@
                 }
             }
         },
+        "/api/auth/reactivate": {
+            "post": {
+                "tags": ["Auth"],
+                "summary": "Reactivate a deactivated account",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["email", "password"],
+                                "properties": {
+                                    "email": { "type": "string" },
+                                    "password": { "type": "string" }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": { "description": "Account reactivated and auth token returned" },
+                    "401": { "description": "Invalid credentials" }
+                }
+            }
+        },
         "/api/auth/refresh": {
             "post": {
                 "tags": [
@@ -1489,6 +1514,18 @@
                 }
             }
         },
+        "/api/users/deactivate": {
+            "patch": {
+                "tags": ["Users"],
+                "summary": "Deactivate the authenticated user's account",
+                "description": "Deactivated accounts are not deleted, but login and authenticated API access are blocked until /api/auth/reactivate succeeds.",
+                "security": [{ "bearerAuth": [] }],
+                "responses": {
+                    "200": { "description": "Account deactivated" },
+                    "401": { "description": "Unauthorized" }
+                }
+            }
+        },
         "/api/users/activities": {
             "get": {
                 "tags": [
@@ -2677,6 +2714,47 @@
                 }
             }
         },
+        "/api/notifications/preferences": {
+            "get": {
+                "tags": ["Notifications"],
+                "summary": "Get notification preferences",
+                "security": [{ "bearerAuth": [] }],
+                "responses": {
+                    "200": { "description": "Notification preferences returned" },
+                    "401": { "description": "Unauthorized" }
+                }
+            },
+            "patch": {
+                "tags": ["Notifications"],
+                "summary": "Update notification preferences",
+                "security": [{ "bearerAuth": [] }],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "likes": { "type": "boolean" },
+                                    "comments": { "type": "boolean" },
+                                    "replies": { "type": "boolean" },
+                                    "follows": { "type": "boolean" },
+                                    "followRequests": { "type": "boolean" },
+                                    "mentions": { "type": "boolean" },
+                                    "shares": { "type": "boolean" },
+                                    "moderation": { "type": "boolean" }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": { "description": "Notification preferences updated" },
+                    "400": { "description": "No valid preference fields provided" },
+                    "401": { "description": "Unauthorized" }
+                }
+            }
+        },
         "/api/notifications/{id}/read": {
             "patch": {
                 "tags": ["Notifications"],
@@ -2794,8 +2872,8 @@
         "/api/shares": {
             "post": {
                 "tags": ["Shares"],
-                "summary": "Share a post or profile with another user",
-                "description": "Creates an inbox share and notification. targetType currently supports post and profile. Comment sharing is a TODO and is not enabled yet.",
+                "summary": "Share a post, profile, or comment with another user",
+                "description": "Creates an inbox share and notification. For post and comment targets, both sender and recipient must be able to view the parent content.",
                 "security": [{ "bearerAuth": [] }],
                 "requestBody": {
                     "required": true,
@@ -2806,7 +2884,7 @@
                                 "required": ["recipientId", "targetType", "targetId"],
                                 "properties": {
                                     "recipientId": { "type": "string" },
-                                    "targetType": { "type": "string", "enum": ["post", "profile"] },
+                                    "targetType": { "type": "string", "enum": ["post", "profile", "comment"] },
                                     "targetId": { "type": "string" },
                                     "message": { "type": "string", "maxLength": 500 }
                                 }

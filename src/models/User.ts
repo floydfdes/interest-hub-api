@@ -34,7 +34,19 @@ export interface IUser extends Document {
   resetToken: string | null;
   resetTokenExpiry: Date | null;
   isBlocked: boolean;
+  isDeactivated: boolean;
+  deactivatedAt: Date | null;
   isPrivate: boolean;
+  notificationPreferences: {
+    likes: boolean;
+    comments: boolean;
+    replies: boolean;
+    follows: boolean;
+    followRequests: boolean;
+    mentions: boolean;
+    shares: boolean;
+    moderation: boolean;
+  };
   warnings: {
     reason: string;
     date: Date;
@@ -93,7 +105,19 @@ const UserSchema = new Schema<IUser>(
     resetToken: { type: String, default: null },
     resetTokenExpiry: { type: Date, default: null },
     isBlocked: { type: Boolean, default: false },
+    isDeactivated: { type: Boolean, default: false },
+    deactivatedAt: { type: Date, default: null },
     isPrivate: { type: Boolean, default: false },
+    notificationPreferences: {
+      likes: { type: Boolean, default: true },
+      comments: { type: Boolean, default: true },
+      replies: { type: Boolean, default: true },
+      follows: { type: Boolean, default: true },
+      followRequests: { type: Boolean, default: true },
+      mentions: { type: Boolean, default: true },
+      shares: { type: Boolean, default: true },
+      moderation: { type: Boolean, default: true },
+    },
     warnings: [
       {
         reason: String,

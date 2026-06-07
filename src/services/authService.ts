@@ -76,9 +76,37 @@ export const registerUserService = async (
 export const loginUserService = async (email: string, password: string) => {
   const user = await User.findOne({ email, isDeleted: false, isBlocked: false });
   if (!user) throw new Error("Invalid credentials");
+  if (user.isDeactivated) throw new Error("Account is deactivated");
 
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) throw new Error("Invalid credentials");
+
+  const token = generateToken(user._id.toString());
+  const refreshToken = generateRefreshToken(user._id.toString());
+
+  return {
+    token,
+    refreshToken,
+    user: {
+      id: user._id,
+      name: user.name,
+      username: user.username,
+      email: user.email,
+      profilePic: user.profilePic || null,
+    },
+  };
+};
+
+export const reactivateUserService = async (email: string, password: string) => {
+  const user = await User.findOne({ email, isDeleted: false, isBlocked: false });
+  if (!user) throw new Error("Invalid credentials");
+
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) throw new Error("Invalid credentials");
+
+  user.isDeactivated = false;
+  user.deactivatedAt = null;
+  await user.save();
 
   const token = generateToken(user._id.toString());
   const refreshToken = generateRefreshToken(user._id.toString());
