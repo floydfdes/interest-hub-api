@@ -95,6 +95,149 @@
                 }
             }
         },
+        "/api/ai/moderate-content": {
+            "post": {
+                "tags": ["AI"],
+                "summary": "Analyze content safety with AI",
+                "description": "Requires OPENAI_API_KEY or AI_API_KEY. Returns 503 until the provider key is configured.",
+                "security": [{ "bearerAuth": [] }],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["content"],
+                                "properties": {
+                                    "content": { "type": "string" },
+                                    "context": { "type": "string", "enum": ["post", "comment", "profile", "message"] }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": { "description": "AI moderation result" },
+                    "400": { "description": "Validation error" },
+                    "503": { "description": "AI provider is not configured" }
+                }
+            }
+        },
+        "/api/ai/suggest-post": {
+            "post": {
+                "tags": ["AI"],
+                "summary": "Suggest title, category, tags, and caption for a post",
+                "description": "Requires OPENAI_API_KEY or AI_API_KEY.",
+                "security": [{ "bearerAuth": [] }],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["content"],
+                                "properties": {
+                                    "title": { "type": "string" },
+                                    "content": { "type": "string" },
+                                    "imageDescription": { "type": "string" }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": { "description": "AI post suggestions" },
+                    "400": { "description": "Validation error" },
+                    "503": { "description": "AI provider is not configured" }
+                }
+            }
+        },
+        "/api/ai/improve-post": {
+            "post": {
+                "tags": ["AI"],
+                "summary": "Improve a draft post with AI",
+                "description": "Requires OPENAI_API_KEY or AI_API_KEY.",
+                "security": [{ "bearerAuth": [] }],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["content"],
+                                "properties": {
+                                    "title": { "type": "string" },
+                                    "content": { "type": "string" },
+                                    "tone": { "type": "string", "enum": ["casual", "friendly", "professional", "short"] }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": { "description": "AI-improved post draft" },
+                    "400": { "description": "Validation error" },
+                    "503": { "description": "AI provider is not configured" }
+                }
+            }
+        },
+        "/api/ai/report-summary": {
+            "post": {
+                "tags": ["AI"],
+                "summary": "Summarize a moderation report with AI",
+                "description": "Requires OPENAI_API_KEY or AI_API_KEY.",
+                "security": [{ "bearerAuth": [] }],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["targetType", "reason"],
+                                "properties": {
+                                    "targetType": { "type": "string", "enum": ["post", "comment", "user"] },
+                                    "content": { "type": "string" },
+                                    "reason": { "type": "string" },
+                                    "details": { "type": "string" }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": { "description": "AI moderation report summary" },
+                    "400": { "description": "Validation error" },
+                    "503": { "description": "AI provider is not configured" }
+                }
+            }
+        },
+        "/api/ai/search-query": {
+            "post": {
+                "tags": ["AI"],
+                "summary": "Expand a search query for semantic search",
+                "description": "Requires OPENAI_API_KEY or AI_API_KEY.",
+                "security": [{ "bearerAuth": [] }],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["query"],
+                                "properties": {
+                                    "query": { "type": "string" }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": { "description": "Expanded semantic search terms" },
+                    "400": { "description": "Validation error" },
+                    "503": { "description": "AI provider is not configured" }
+                }
+            }
+        },
         "/api/auth/register": {
             "post": {
                 "tags": [

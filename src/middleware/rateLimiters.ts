@@ -63,3 +63,12 @@ export const shareRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+export const aiRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  keyGenerator: keyByIpAndUser,
+  message: { message: "Too many AI requests, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
