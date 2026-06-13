@@ -7,6 +7,8 @@ import {
   summarizeReport,
 } from "../controllers/aiController";
 import authMiddleware from "../middleware/authMiddleware";
+import { aiRateLimiter } from "../middleware/rateLimiters";
+import validate from "../middleware/validate";
 import {
   aiImprovePostValidation,
   aiModerationValidation,
@@ -14,8 +16,6 @@ import {
   aiSearchQueryValidation,
   aiSuggestPostValidation,
 } from "../middleware/validateAi";
-import validate from "../middleware/validate";
-import { aiRateLimiter } from "../middleware/rateLimiters";
 
 const router = express.Router();
 
