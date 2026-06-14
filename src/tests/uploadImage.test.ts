@@ -55,4 +55,15 @@ describe("uploadImageToCloudinary", () => {
     );
     expect(url).toBe("https://images.example.test/post.jpg");
   });
+
+  it("returns remote image URLs without re-uploading", async () => {
+    const url = await uploadImageToCloudinary(
+      "https://images.example.test/existing-post.jpg",
+      "post_images"
+    );
+
+    expect(url).toBe("https://images.example.test/existing-post.jpg");
+    expect(mockConfig).not.toHaveBeenCalled();
+    expect(mockUploadStream).not.toHaveBeenCalled();
+  });
 });

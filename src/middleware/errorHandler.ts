@@ -11,7 +11,10 @@ const errorHandler = (err: any, req: Request, res: Response, _next: NextFunction
   });
   res.status(statusCode).json({
     status: "error",
-    message: err.message || "Internal Server Error",
+    message:
+      statusCode >= 500
+        ? "Something went wrong. Please try again."
+        : err.message || "Request failed",
   });
 };
 

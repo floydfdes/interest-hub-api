@@ -7,6 +7,8 @@ import { formatPaginatedPostResponse, formatPostResponse } from "../utils/postRe
 const includesUser = (ids: { equals: (id: string) => boolean }[] = [], userId?: string) =>
   Boolean(userId && ids.some((id) => id.equals(userId)));
 
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const canViewPrivateAccount = (
   user: {
     _id: { toString: () => string };
@@ -292,7 +294,7 @@ export const getFollowers = async (
   if (!user) return null;
   if (!canViewPrivateAccount(user, viewerId)) return false;
 
-  const total = user.followers.length;
+  const total = (user.followers ?? []).length;
   await user.populate({
     path: "followers",
     select: "name username profilePic",
@@ -313,7 +315,7 @@ export const getFollowing = async (
   if (!user) return null;
   if (!canViewPrivateAccount(user, viewerId)) return false;
 
-  const total = user.following.length;
+  const total = (user.following ?? []).length;
   await user.populate({
     path: "following",
     select: "name username profilePic",
@@ -341,7 +343,7 @@ export const getMutedUsers = async (userId: string, pagination: PaginationParams
   const user = await User.findOne({ _id: userId, isDeleted: false }).select("mutedUsers");
   if (!user) return null;
 
-  const total = user.mutedUsers.length;
+  const total = (user.mutedUsers ?? []).length;
   await user.populate({
     path: "mutedUsers",
     select: "name username profilePic",
@@ -355,7 +357,7 @@ export const getFollowRequests = async (userId: string, pagination: PaginationPa
   const user = await User.findOne({ _id: userId, isDeleted: false }).select("followRequests");
   if (!user) return null;
 
-  const total = user.followRequests.length;
+  const total = (user.followRequests ?? []).length;
   await user.populate({
     path: "followRequests",
     select: "name username profilePic bio",
@@ -467,12 +469,27 @@ export const unmuteUser = async (userId: string, targetUserId: string) => {
 };
 
 export const searchUsers = async (query: string) => {
-  const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const regex = new RegExp(escapedQuery, "i");
+  const terms = query
+    .trim()
+    .replace(/^@+/, "")
+    .split(/[\s,]+/)
+    .map((term) => term.replace(/^@+/, "").trim())
+    .filter(Boolean)
+    .slice(0, 5);
+
+  const termFilters = terms.map((term) => {
+    const regex = new RegExp(escapeRegExp(term), "i");
+    return {
+      $or: [{ name: regex }, { username: regex }, { interests: regex }],
+    };
+  });
+
   const users = await User.find({
     isDeleted: false,
-    $or: [{ name: regex }, { username: regex }, { interests: regex, isPrivate: { $ne: true } }],
-  }).select("name username profilePic bio interests following followers isPrivate createdAt");
+    ...(termFilters.length > 0 && { $and: termFilters }),
+  })
+    .select("name username profilePic bio interests following followers isPrivate createdAt")
+    .limit(20);
 
   return users.map((user) =>
     user.isPrivate

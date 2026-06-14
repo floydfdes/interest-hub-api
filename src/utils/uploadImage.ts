@@ -18,7 +18,13 @@ const configureCloudinary = (): void => {
   });
 };
 
+const isRemoteImageUrl = (value: string): boolean => /^https?:\/\/\S+$/i.test(value.trim());
+
 export const uploadImageToCloudinary = async (base64: string, folder: string): Promise<string> => {
+  if (isRemoteImageUrl(base64)) {
+    return base64.trim();
+  }
+
   configureCloudinary();
 
   try {

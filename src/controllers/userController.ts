@@ -128,7 +128,11 @@ export const profilePosts = async (req: AuthRequest, res: Response) => {
 export const updateProfile = async (req: AuthRequest, res: Response) => {
   try {
     const updated = await updateUserProfile(req.userId!, req.body);
-    res.status(200).json(updated);
+    if (!updated) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+    res.status(200).json({ user: updated });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to update profile";
     if (

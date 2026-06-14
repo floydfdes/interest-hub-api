@@ -40,6 +40,7 @@ import {
   getProfileCompletion,
   getUserById,
   getUserPosts,
+  searchUsers,
   muteUser,
   unblockUser,
   unmuteUser,
@@ -399,6 +400,61 @@ describe("profile completion", () => {
       percentage: 60,
       completedFields: ["name", "username", "interests"],
       missingFields: ["bio", "profilePic"],
+    });
+  });
+});
+
+describe("user search", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("uses tokenized partial matching and hides private profile details", async () => {
+    const select = jest.fn(() => ({ limit }));
+    const limit = jest.fn().mockResolvedValue([
+      {
+        _id: targetId,
+        name: "Floyd Fernandes",
+        username: "floydfernandes",
+        profilePic: "",
+        bio: "Travel builder",
+        interests: ["travel"],
+        isPrivate: false,
+      },
+      {
+        _id: userId,
+        name: "Private Match",
+        username: "private_match",
+        profilePic: "",
+        bio: "hidden",
+        interests: ["travel"],
+        isPrivate: true,
+      },
+    ]);
+    mockUserFind.mockReturnValueOnce({ select });
+
+    const users = await searchUsers("@flo fer");
+
+    expect(mockUserFind).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isDeleted: false,
+        $and: expect.arrayContaining([
+          expect.objectContaining({ $or: expect.any(Array) }),
+          expect.objectContaining({ $or: expect.any(Array) }),
+        ]),
+      })
+    );
+    expect(select).toHaveBeenCalledWith(
+      "name username profilePic bio interests following followers isPrivate createdAt"
+    );
+    expect(limit).toHaveBeenCalledWith(20);
+    expect(users[0]).toEqual(expect.objectContaining({ username: "floydfernandes" }));
+    expect(users[1]).toEqual({
+      _id: userId,
+      name: "Private Match",
+      username: "private_match",
+      profilePic: null,
+      isPrivate: true,
     });
   });
 });
