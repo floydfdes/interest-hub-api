@@ -47,6 +47,9 @@ export interface IUser extends Document {
     shares: boolean;
     moderation: boolean;
   };
+  emailPreferences: {
+    enabled: boolean;
+  };
   warnings: {
     reason: string;
     date: Date;
@@ -117,6 +120,9 @@ const UserSchema = new Schema<IUser>(
       mentions: { type: Boolean, default: true },
       shares: { type: Boolean, default: true },
       moderation: { type: Boolean, default: true },
+    },
+    emailPreferences: {
+      enabled: { type: Boolean, default: true },
     },
     warnings: [
       {

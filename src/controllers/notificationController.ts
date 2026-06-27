@@ -4,6 +4,7 @@ import {
   clearAllNotificationsService,
   clearReadNotificationsService,
   deleteNotificationService,
+  getEmailPreferencesService,
   getNotificationPreferencesService,
   getNotificationsService,
   getUnreadNotificationCountService,
@@ -12,6 +13,7 @@ import {
   markNotificationReadService,
   markNotificationUnreadService,
   updateNotificationPreferencesService,
+  updateEmailPreferencesService,
 } from "../services/notificationService";
 import { logError } from "../utils/logger";
 import { getPagination } from "../utils/pagination";
@@ -66,6 +68,41 @@ export const updateNotificationPreferences = async (req: AuthRequest, res: Respo
     }
     logError("Failed to update notification preferences", error, { userId: req.userId });
     res.status(500).json({ message: "Failed to update notification preferences" });
+  }
+};
+
+export const getEmailPreferences = async (req: AuthRequest, res: Response) => {
+  try {
+    const preferences = await getEmailPreferencesService(req.userId!);
+    if (!preferences) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.status(200).json(preferences);
+  } catch (error) {
+    logError("Failed to fetch email preferences", error, { userId: req.userId });
+    res.status(500).json({ message: "Failed to fetch email preferences" });
+  }
+};
+
+export const updateEmailPreferences = async (req: AuthRequest, res: Response) => {
+  try {
+    const preferences = await updateEmailPreferencesService(req.userId!, req.body);
+    if (!preferences) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.status(200).json(preferences);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to update email preferences";
+    if (message === "Provide enabled as a boolean") {
+      res.status(400).json({ message });
+      return;
+    }
+    logError("Failed to update email preferences", error, { userId: req.userId });
+    res.status(500).json({ message: "Failed to update email preferences" });
   }
 };
 

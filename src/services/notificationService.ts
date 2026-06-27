@@ -31,9 +31,7 @@ const notificationPreferenceByType: Record<NotificationType, string> = {
 };
 
 const canReceiveNotification = async (recipientId: string | Types.ObjectId, type: NotificationType) => {
-  const user = await User.findOne({ _id: recipientId, isDeleted: false }).select(
-    "notificationPreferences"
-  );
+  const user = await User.findOne({ _id: recipientId, isDeleted: false }).select("notificationPreferences");
   if (!user) return false;
 
   const preferenceKey = notificationPreferenceByType[type];
@@ -65,26 +63,17 @@ export const createNotification = async ({
 };
 
 export const getNotificationPreferencesService = async (userId: string) => {
-  const user = await User.findOne({ _id: userId, isDeleted: false }).select(
-    "notificationPreferences"
-  );
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select("notificationPreferences");
   return user?.notificationPreferences ?? null;
 };
 
-export const updateNotificationPreferencesService = async (
-  userId: string,
-  preferences: Record<string, unknown>
-) => {
-  const allowedKeys = [
-    "likes",
-    "comments",
-    "replies",
-    "follows",
-    "followRequests",
-    "mentions",
-    "shares",
-    "moderation",
-  ];
+export const getEmailPreferencesService = async (userId: string) => {
+  const user = await User.findOne({ _id: userId, isDeleted: false }).select("emailPreferences");
+  return user ? (user.emailPreferences ?? { enabled: true }) : null;
+};
+
+export const updateNotificationPreferencesService = async (userId: string, preferences: Record<string, unknown>) => {
+  const allowedKeys = ["likes", "comments", "replies", "follows", "followRequests", "mentions", "shares", "moderation"];
   const updates = Object.fromEntries(
     allowedKeys
       .filter((key) => typeof preferences[key] === "boolean")
@@ -95,13 +84,25 @@ export const updateNotificationPreferencesService = async (
     throw new Error("Provide at least one notification preference");
   }
 
-  const user = await User.findOneAndUpdate(
-    { _id: userId, isDeleted: false },
-    { $set: updates },
-    { new: true }
-  ).select("notificationPreferences");
+  const user = await User.findOneAndUpdate({ _id: userId, isDeleted: false }, { $set: updates }, { new: true }).select(
+    "notificationPreferences"
+  );
 
   return user?.notificationPreferences ?? null;
+};
+
+export const updateEmailPreferencesService = async (userId: string, preferences: Record<string, unknown>) => {
+  if (typeof preferences.enabled !== "boolean") {
+    throw new Error("Provide enabled as a boolean");
+  }
+
+  const user = await User.findOneAndUpdate(
+    { _id: userId, isDeleted: false },
+    { $set: { "emailPreferences.enabled": preferences.enabled } },
+    { new: true }
+  ).select("emailPreferences");
+
+  return user ? (user.emailPreferences ?? { enabled: true }) : null;
 };
 
 export const getNotificationsService = async (userId: string, pagination: PaginationParams) => {

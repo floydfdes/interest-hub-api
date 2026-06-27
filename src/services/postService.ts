@@ -18,6 +18,7 @@ import {
 } from "./contentModerationService";
 import { createNotification } from "./notificationService";
 import { notifyMentionedUsers } from "./mentionService";
+import { sendModerationHiddenEmail } from "./emailService";
 
 type CreatePostData = Pick<IPost, "title" | "content" | "category" | "author"> & {
   image: string;
@@ -141,6 +142,7 @@ export const createPostService = async (postData: CreatePostData) => {
       postId: post._id as mongoose.Types.ObjectId,
       message: "Your post is under review and hidden until moderation is complete.",
     });
+    await sendModerationHiddenEmail(post.author.toString(), "post");
   } else {
     await notifyMentionedUsers({
       actorId: post.author.toString(),
@@ -252,6 +254,7 @@ export const publishDraftPostService = async (id: string, userId: string) => {
       postId: post._id as mongoose.Types.ObjectId,
       message: "Your post is under review and hidden until moderation is complete.",
     });
+    await sendModerationHiddenEmail(post.author.toString(), "post");
   } else {
     await notifyMentionedUsers({
       actorId: post.author.toString(),
@@ -965,6 +968,7 @@ export const updatePostService = async (id: string, userId: string, updates: Upd
       postId: post._id as mongoose.Types.ObjectId,
       message: "Your post edit is under review and hidden until moderation is complete.",
     });
+    await sendModerationHiddenEmail(post.author.toString(), "post");
   } else {
     await dismissAutoModerationReport({
       targetType: "post",

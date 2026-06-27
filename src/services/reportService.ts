@@ -1,15 +1,11 @@
 import mongoose from "mongoose";
 import Comment from "../models/Comment";
 import Post from "../models/Post";
-import Report, {
-  ReportAction,
-  ReportReason,
-  ReportStatus,
-  ReportTargetType,
-} from "../models/Report";
+import Report, { ReportAction, ReportReason, ReportStatus, ReportTargetType } from "../models/Report";
 import User from "../models/User";
 import { paginatedResponse, PaginationParams } from "../utils/pagination";
 import { deleteAdminCommentService, deleteAdminPostService } from "./adminService";
+import { sendReportReviewedEmail } from "./emailService";
 
 interface CreateReportInput {
   reporterId: string;
@@ -26,13 +22,7 @@ const targetQuery = (targetType: ReportTargetType, targetId: mongoose.Types.Obje
       ? { comment: targetId }
       : { targetUser: targetId };
 
-export const createReportService = async ({
-  reporterId,
-  targetType,
-  targetId,
-  reason,
-  details,
-}: CreateReportInput) => {
+export const createReportService = async ({ reporterId, targetType, targetId, reason, details }: CreateReportInput) => {
   const reporterObjectId = new mongoose.Types.ObjectId(reporterId);
   const targetObjectId = new mongoose.Types.ObjectId(targetId);
   let ownerId: mongoose.Types.ObjectId;
@@ -116,20 +106,13 @@ const clearBadLanguageReview = async (report: {
   }
 };
 
-export const getAdminReportsService = async ({
-  status,
-  targetType,
-  pagination,
-}: AdminReportFilters) => {
+export const getAdminReportsService = async ({ status, targetType, pagination }: AdminReportFilters) => {
   const filter = {
     ...(status && { status }),
     ...(targetType && { targetType }),
   };
   const [reports, total] = await Promise.all([
-    populateReport(Report.find(filter))
-      .sort({ createdAt: -1 })
-      .skip(pagination.skip)
-      .limit(pagination.limit),
+    populateReport(Report.find(filter)).sort({ createdAt: -1 }).skip(pagination.skip).limit(pagination.limit),
     Report.countDocuments(filter),
   ]);
   return paginatedResponse(reports, total, pagination);
@@ -155,6 +138,12 @@ export const reviewReportService = async (
   report.reviewedAt = new Date();
   if (note !== undefined) report.resolutionNote = note.trim();
   await report.save();
+  const reporter = report.reporter
+    ? await User.findOne({ _id: report.reporter, isDeleted: false }).select("name email emailPreferences")
+    : null;
+  if (reporter) {
+    await sendReportReviewedEmail(reporter, status);
+  }
   return report;
 };
 
@@ -196,9 +185,7 @@ export const moderateReportService = async (
           : false;
     if (!removed) {
       throw new Error(
-        report.targetType === "user"
-          ? "Action is not available for this report"
-          : "Reported content not found"
+        report.targetType === "user" ? "Action is not available for this report" : "Reported content not found"
       );
     }
   }
@@ -229,5 +216,11 @@ export const moderateReportService = async (
   report.reviewedAt = new Date();
   if (note !== undefined) report.resolutionNote = note.trim();
   await report.save();
+  const reporter = report.reporter
+    ? await User.findOne({ _id: report.reporter, isDeleted: false }).select("name email emailPreferences")
+    : null;
+  if (reporter) {
+    await sendReportReviewedEmail(reporter, "resolved");
+  }
   return report;
 };

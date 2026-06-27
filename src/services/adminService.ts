@@ -5,6 +5,7 @@ import Post, { Visibility } from "../models/Post";
 import User from "../models/User";
 import { paginatedResponse, PaginationParams } from "../utils/pagination";
 import { uploadImageToCloudinary } from "../utils/uploadImage";
+import { sendPasswordChangedEmail, sendWelcomeEmail } from "./emailService";
 
 const safeUserFields = "-password -otp -otpExpires -twoFASecret -resetToken -resetTokenExpiry";
 
@@ -41,36 +42,27 @@ interface AdminPostFilters {
 
 const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-const uniqueObjectIds = (ids: string[]) =>
-  [...new Set(ids)].map((id) => new mongoose.Types.ObjectId(id));
+const uniqueObjectIds = (ids: string[]) => [...new Set(ids)].map((id) => new mongoose.Types.ObjectId(id));
 
 const normalizeTags = (tags: string[] = []): string[] => [
   ...new Set(tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean)),
 ];
 
 export const getAdminDashboardService = async () => {
-  const [
-    totalUsers,
-    adminUsers,
-    blockedUsers,
-    totalPosts,
-    totalComments,
-    replyCounts,
-    recentUsers,
-    recentPosts,
-  ] = await Promise.all([
-    User.countDocuments({ isDeleted: false }),
-    User.countDocuments({ role: "admin", isDeleted: false }),
-    User.countDocuments({ isBlocked: true, isDeleted: false }),
-    Post.countDocuments(),
-    Comment.countDocuments(),
-    Comment.aggregate<{ total: number }>([
-      { $project: { replies: { $size: { $ifNull: ["$replies", []] } } } },
-      { $group: { _id: null, total: { $sum: "$replies" } } },
-    ]),
-    User.find({ isDeleted: false }).select(safeUserFields).sort({ createdAt: -1 }).limit(5),
-    Post.find().populate("author", "name email profilePic").sort({ createdAt: -1 }).limit(5),
-  ]);
+  const [totalUsers, adminUsers, blockedUsers, totalPosts, totalComments, replyCounts, recentUsers, recentPosts] =
+    await Promise.all([
+      User.countDocuments({ isDeleted: false }),
+      User.countDocuments({ role: "admin", isDeleted: false }),
+      User.countDocuments({ isBlocked: true, isDeleted: false }),
+      Post.countDocuments(),
+      Comment.countDocuments(),
+      Comment.aggregate<{ total: number }>([
+        { $project: { replies: { $size: { $ifNull: ["$replies", []] } } } },
+        { $group: { _id: null, total: { $sum: "$replies" } } },
+      ]),
+      User.find({ isDeleted: false }).select(safeUserFields).sort({ createdAt: -1 }).limit(5),
+      Post.find().populate("author", "name email profilePic").sort({ createdAt: -1 }).limit(5),
+    ]);
 
   return {
     counts: {
@@ -86,10 +78,7 @@ export const getAdminDashboardService = async () => {
   };
 };
 
-export const getAdminUsersService = async (
-  query: string | undefined,
-  pagination: PaginationParams
-) => {
+export const getAdminUsersService = async (query: string | undefined, pagination: PaginationParams) => {
   const filter = query
     ? {
         $or: [
@@ -100,11 +89,7 @@ export const getAdminUsersService = async (
     : {};
 
   const [users, total] = await Promise.all([
-    User.find(filter)
-      .select(safeUserFields)
-      .sort({ createdAt: -1 })
-      .skip(pagination.skip)
-      .limit(pagination.limit),
+    User.find(filter).select(safeUserFields).sort({ createdAt: -1 }).skip(pagination.skip).limit(pagination.limit),
     User.countDocuments(filter),
   ]);
 
@@ -135,6 +120,7 @@ export const createAdminUserService = async (input: AdminUserInput) => {
     isBlocked: input.isBlocked,
     isPrivate: input.isPrivate,
   });
+  await sendWelcomeEmail(user);
 
   return User.findById(user._id).select(safeUserFields);
 };
@@ -160,15 +146,12 @@ export const bulkCreateAdminUsersService = async (inputs: AdminUserInput[]) => {
       isPrivate: input.isPrivate,
     }))
   );
+  await Promise.all(users.map((user) => sendWelcomeEmail(user)));
 
   return User.find({ _id: { $in: users.map((user) => user._id) } }).select(safeUserFields);
 };
 
-export const updateAdminUserService = async (
-  id: string,
-  actorId: string,
-  input: AdminUserUpdate
-) => {
+export const updateAdminUserService = async (id: string, actorId: string, input: AdminUserUpdate) => {
   const user = await User.findById(id);
   if (!user) return null;
 
@@ -197,6 +180,9 @@ export const updateAdminUserService = async (
     user.password = await bcrypt.hash(input.password, 10);
   }
   await user.save();
+  if (input.password) {
+    await sendPasswordChangedEmail(user);
+  }
 
   return User.findById(id).select(safeUserFields);
 };
@@ -318,20 +304,11 @@ export const bulkDeleteAdminUsersService = async (ids: string[], actorId: string
   return { requested: selectedIds.length, deleted: userIds.length };
 };
 
-export const setAdminUserBlockedService = async (
-  id: string,
-  actorId: string,
-  isBlocked: boolean
-) => {
+export const setAdminUserBlockedService = async (id: string, actorId: string, isBlocked: boolean) => {
   return updateAdminUserService(id, actorId, { isBlocked });
 };
 
-export const getAdminPostsService = async ({
-  query,
-  authorId,
-  visibility,
-  pagination,
-}: AdminPostFilters) => {
+export const getAdminPostsService = async ({ query, authorId, visibility, pagination }: AdminPostFilters) => {
   const filter: Record<string, unknown> = {};
   if (query) {
     const search = { $regex: escapeRegex(query), $options: "i" };
@@ -373,9 +350,7 @@ export const bulkCreateAdminPostsService = async (inputs: AdminPostInput[]) => {
     throw new Error("One or more post authors not found");
   }
 
-  const images = await Promise.all(
-    inputs.map((input) => uploadImageToCloudinary(input.image, "post_images"))
-  );
+  const images = await Promise.all(inputs.map((input) => uploadImageToCloudinary(input.image, "post_images")));
 
   return Post.insertMany(
     inputs.map((input, index) => ({

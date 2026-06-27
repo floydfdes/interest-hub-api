@@ -1,12 +1,13 @@
-import {
-  generateRefreshToken,
-  generateResetToken,
-  generateToken,
-  verifyToken,
-} from "../utils/token";
+import { generateRefreshToken, generateResetToken, generateToken, verifyToken } from "../utils/token";
 
 import bcrypt from "bcryptjs";
 import User from "../models/User";
+import {
+  sendAccountReactivatedEmail,
+  sendPasswordChangedEmail,
+  sendPasswordResetEmail,
+  sendWelcomeEmail,
+} from "./emailService";
 
 const normalizeUsername = (username: string) => username.trim().toLowerCase();
 
@@ -36,12 +37,7 @@ const getAvailableUsername = async (name: string, email: string, requestedUserna
   return `${base}${Date.now().toString().slice(-6)}`.slice(0, 30);
 };
 
-export const registerUserService = async (
-  name: string,
-  email: string,
-  password: string,
-  username?: string
-) => {
+export const registerUserService = async (name: string, email: string, password: string, username?: string) => {
   const existingUser = await User.findOne({ email });
   if (existingUser) throw new Error("Email already in use");
 
@@ -56,6 +52,7 @@ export const registerUserService = async (
   });
 
   await user.save();
+  await sendWelcomeEmail(user);
 
   const token = generateToken(user._id.toString());
   const refreshToken = generateRefreshToken(user._id.toString());
@@ -107,6 +104,7 @@ export const reactivateUserService = async (email: string, password: string) => 
   user.isDeactivated = false;
   user.deactivatedAt = null;
   await user.save();
+  await sendAccountReactivatedEmail(user);
 
   const token = generateToken(user._id.toString());
   const refreshToken = generateRefreshToken(user._id.toString());
@@ -145,6 +143,7 @@ export const forgotPasswordService = async (email: string): Promise<string | nul
   await user.save();
 
   const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+  await sendPasswordResetEmail(user, resetLink);
   return resetLink;
 };
 
@@ -162,6 +161,7 @@ export const resetPasswordService = async (token: string, newPassword: string): 
   user.resetTokenExpiry = null;
 
   await user.save();
+  await sendPasswordChangedEmail(user);
 };
 
 export const changePasswordService = async (
@@ -179,4 +179,5 @@ export const changePasswordService = async (
   user.password = hashedNewPassword;
 
   await user.save();
+  await sendPasswordChangedEmail(user);
 };

@@ -7,6 +7,7 @@ import { analyzeContentModeration, createAutoModerationReport } from "./contentM
 import { createNotification } from "./notificationService";
 import { notifyMentionedUsers } from "./mentionService";
 import { paginatedResponse, PaginationParams } from "../utils/pagination";
+import { sendModerationHiddenEmail } from "./emailService";
 
 const DELETED_COMMENT_CONTENT = "This comment was deleted.";
 
@@ -104,6 +105,7 @@ export const createCommentService = async (
       targetType: "comment",
       targetId: savedComment._id as mongoose.Types.ObjectId,
     });
+    await sendModerationHiddenEmail(userId, "comment");
   } else {
     await createNotification({
       recipientId: post.author,
@@ -153,6 +155,7 @@ export const editCommentService = async (
       targetType: "comment",
       targetId: comment._id as mongoose.Types.ObjectId,
     });
+    await sendModerationHiddenEmail(userId, "comment");
   } else {
     await notifyMentionedUsers({
       actorId: userId,
@@ -236,6 +239,7 @@ export const replyToCommentService = async (
       targetType: "comment",
       targetId: comment._id as mongoose.Types.ObjectId,
     });
+    await sendModerationHiddenEmail(userId, "comment");
   } else if (comment) {
     await createNotification({
       recipientId: comment.user,
@@ -289,6 +293,7 @@ export const editReplyService = async (
       targetType: "comment",
       targetId: comment._id as mongoose.Types.ObjectId,
     });
+    await sendModerationHiddenEmail(userId, "comment");
   } else {
     await notifyMentionedUsers({
       actorId: userId,
@@ -395,6 +400,7 @@ export const replyToReplyService = async (
       targetType: "comment",
       targetId: comment._id as mongoose.Types.ObjectId,
     });
+    await sendModerationHiddenEmail(userId, "comment");
   } else {
     await createNotification({
       recipientId: comment.replies[parentReplyIndex].user,

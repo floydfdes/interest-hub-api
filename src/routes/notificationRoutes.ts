@@ -3,6 +3,7 @@ import {
   clearAllNotifications,
   clearReadNotifications,
   deleteNotification,
+  getEmailPreferences,
   getNotificationPreferences,
   getNotifications,
   getUnreadNotificationCount,
@@ -11,6 +12,7 @@ import {
   markNotificationRead,
   markNotificationUnread,
   updateNotificationPreferences,
+  updateEmailPreferences,
 } from "../controllers/notificationController";
 import authMiddleware from "../middleware/authMiddleware";
 
@@ -20,6 +22,8 @@ router.get("/", authMiddleware, getNotifications);
 router.get("/unread-count", authMiddleware, getUnreadNotificationCount);
 router.get("/preferences", authMiddleware, getNotificationPreferences);
 router.patch("/preferences", authMiddleware, updateNotificationPreferences);
+router.get("/email-preferences", authMiddleware, getEmailPreferences);
+router.patch("/email-preferences", authMiddleware, updateEmailPreferences);
 router.patch("/read-all", authMiddleware, markAllNotificationsRead);
 router.patch("/unread-all", authMiddleware, markAllNotificationsUnread);
 router.delete("/read", authMiddleware, clearReadNotifications);

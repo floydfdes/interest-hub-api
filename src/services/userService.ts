@@ -3,6 +3,7 @@ import User from "../models/User";
 import { uploadImageToCloudinary } from "../utils/uploadImage";
 import { paginatedResponse, PaginationParams } from "../utils/pagination";
 import { formatPaginatedPostResponse, formatPostResponse } from "../utils/postResponse";
+import { sendAccountDeactivatedEmail, sendAccountDeletedEmail } from "./emailService";
 
 const includesUser = (ids: { equals: (id: string) => boolean }[] = [], userId?: string) =>
   Boolean(userId && ids.some((id) => id.equals(userId)));
@@ -216,15 +217,23 @@ export const updateUserProfile = async (
 };
 
 export const deleteUserAccount = async (userId: string) => {
-  return User.findByIdAndUpdate(userId, { isDeleted: true, deletedAt: new Date() });
+  const user = await User.findOneAndUpdate(
+    { _id: userId, isDeleted: false },
+    { isDeleted: true, deletedAt: new Date() },
+    { new: true }
+  );
+  if (user) await sendAccountDeletedEmail(user);
+  return user;
 };
 
 export const deactivateUserAccount = async (userId: string) => {
-  return User.findOneAndUpdate(
+  const user = await User.findOneAndUpdate(
     { _id: userId, isDeleted: false },
     { $set: { isDeactivated: true, deactivatedAt: new Date() } },
     { new: true }
   );
+  if (user) await sendAccountDeactivatedEmail(user);
+  return user;
 };
 
 export const followUser = async (userId: string, targetUserId: string) => {
